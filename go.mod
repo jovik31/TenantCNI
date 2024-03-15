@@ -1,4 +1,4 @@
-module github.com/jovik31/controller
+module github.com/jovik31/tenant
 
 go 1.22.0
 

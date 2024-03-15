@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/alexflint/go-filemutex"
-	nodeConf "github.com/jovik31/controller/pkg/ipam/types"
+	nodeConf "github.com/jovik31/tenant/pkg/ipam/types"
 )
 
 const (

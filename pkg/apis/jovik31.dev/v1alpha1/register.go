@@ -31,3 +31,7 @@ func addKnownTypes(scheme *runtime.Scheme) error{
 	
 	return nil
 }
+
+func Resource(resource string) schema.GroupResource {
+	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}

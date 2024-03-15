@@ -3,7 +3,7 @@ package ipam
 import (
 	"net"
 
-	"github.com/jovik31/controller/pkg/store"
+	"github.com/jovik31/tenant/pkg/store"
 )
 
 type NodeIPAM struct {
