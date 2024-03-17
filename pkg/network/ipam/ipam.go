@@ -8,5 +8,7 @@ import(
 
 )
 
+//Allocate a subnet to a tenant, populate its fields if needed
+func AllocateTenant()
 
-type
+func AllocateIP()

@@ -1,12 +1,8 @@
 package main
 
 import (
-	//"context"
-	"bufio"
 	"context"
-	"os"
 
-	//"fmt"
 	"log"
 	"time"
 
@@ -25,7 +21,6 @@ var (
 
 func main() {
 
-	LogErrors("test", defaultTenantDir+"errors.log")
 
 	//init kubernetes client for initial configurations
 	config, err := kubecnf.InitKubeConfig()
@@ -43,11 +38,14 @@ func main() {
 	}
 	tenantRegistration.RegisterDefaultTenant(tenantClient)
 
+	//Get current node CIDR to populate the node management file
+
 	nodes, err := kubecnf.GetKubeClientSet().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Printf("Error getting nodes: %s", err.Error())
 	}
 	log.Print(nodes.Items[0].Spec.PodCIDR)
+
 
 	//Start controller on a go routine
 	ch := make(chan struct{})
@@ -59,19 +57,4 @@ func main() {
 	}
 	<-ch
 
-}
-
-func LogErrors(text string, filePath string) error {
-	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-
-	if err != nil {
-		return err
-	}
-
-	writer := bufio.NewWriter(f)
-
-	writer.WriteString(text)
-	writer.Flush()
-
-	return nil
 }

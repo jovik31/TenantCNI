@@ -7,29 +7,31 @@ import (
 )
 
 type NodeIPAM struct {
-	NodeIP        net.IP
-	nodeCIDR      net.IPNet
+	nodeIP        net.IP
+	nodeCIDR      *net.IPNet
 	nextTenantIP  net.IP
-	tenantsInNode int
 	allowedNew    bool
 	store         *store.DataStore
-	tenants       []tenantIPAM
+	tenants       []TenantIPAM
 }
 
-type tenantIPAM struct {
-	tenantCIDR    net.IPNet
-	bridgeName    string
-	vtepName      string
-	VNI           int
-	bridgeGateway net.IP
-	vtepIP        net.IP
-	vtepMac       net.HardwareAddr
-	routes        vxlanRoutes
+type TenantIPAM struct {
+	tenantCIDR		*net.IPNet
+	bridge			*Bridge
+	vxlan        	*Vxlan
+	store           *store.DataStore
 }
 
-type vxlanRoutes struct {
-	ARP string
-	FDB string
+type Bridge struct {
+	name string
+	gateway net.IP
+}
+
+type Vxlan struct {
+	vtepName string
+	vtepIP  net.IP
+	vtepMac	net.HardwareAddr
+	VNI		int
 }
 
 func newIPAM()

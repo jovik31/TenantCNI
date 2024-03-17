@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -52,8 +53,6 @@ func GetKubeClientSet() *kubernetes.Clientset {
 
 }
 
-//func getNodeCIDR()
-
 func InitKubeConfig() (*rest.Config, error) {
 	var kubeconfig *string
 
@@ -76,4 +75,29 @@ func InitKubeConfig() (*rest.Config, error) {
 
 }
 
-func GetNodes() {}
+func GetNodeCIDR() string{
+	nodeList := GetNodes()
+	currentNodeName, err := GetCurrentNodeName(GetKubeClientSet())
+	currentNodeCIDR := ""
+	if err != nil{
+
+	}
+	for _, node := range nodeList.Items{
+
+		if currentNodeName == node.Name{
+			currentNodeCIDR = node.Spec.PodCIDR
+		}
+	}
+	return currentNodeCIDR
+
+}
+
+func GetNodes()*v1.NodeList{
+
+	nodes, err:=GetKubeClientSet().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+
+		log.Print("Not able to retrieve ")
+	}
+	return nodes
+}

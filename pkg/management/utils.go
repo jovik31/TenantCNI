@@ -12,7 +12,7 @@ var (
 func checkIfFileExists() {
 }
 
-func createFile(data, filePath string) error {
+func createFile(data, filePath string) {
 }
 
 func deleteFile() {
@@ -32,3 +32,5 @@ func LogErrors(text string, filePath string) error {
 
 	return nil
 }
+
+

@@ -4,12 +4,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/alexflint/go-filemutex"
+	filemutex"github.com/alexflint/go-filemutex"
 	nodeConf "github.com/jovik31/tenant/pkg/ipam/types"
 )
 
 const (
-	defaultDataStoreDir = "/var/lib/cni/tenants"
+	defaultDataStoreDir = "/var/lib/cni/tenants/"
 )
 
 type DataStore struct {
