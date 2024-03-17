@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tenant-service-account
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: tenant-cluster-role
+rules:
+- apiGroups:
+  - jovik31.dev
+  resources:
+  - tenants
+  verbs:
+  - list
+  - watch
+  - create
+  - get
+  - patch
+  - update
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - list
+  - watch
+  - create
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - namespaces
+  verbs:
+  - list
+  - watch
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: tenant-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: tenant-service-account
+  namespace: default
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  creationTimestamp: null
+  labels:
+    app: tenant
+  name: tenant
+spec:
+  selector:
+    matchLabels:
+      app: tenant
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: tenant
+    spec:
+      containers:
+      - image: jovik31/tenant:0.1.0
+        name: tenant
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace 
+        - name: MY_NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        securityContext:
+          privileged: false
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
+        volumeMounts:
+        - name: var-cni-tenants
+          mountPath: /var/cni/tenants
+      volumes:
+        - name: var-cni-tenants
+          hostPath:
+            path: /var/cni/tenants
+      hostNetwork: true
+      serviceAccountName: tenant-service-account

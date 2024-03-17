@@ -1,12 +1,13 @@
 apiVersion: jovik31.dev/v1alpha1
 kind: Tenant
 metadata:
-  name: tenant2
+  name: tenant3
 spec:
-  name: tenant2
+  name: tenant3
   nodes:
+   
     - name: kind-control-plane
-      vtepIp: 10.0.0.1
-      nodeIP: 10.2.2.1
-      vtepMac: "10:0b:a9:7f:00:01"
+      vtepIp: 10.0.1.1
+      nodeIP: 10.3.3.3
+      vtepMac: 18:0c:13:7f:00:01
            
