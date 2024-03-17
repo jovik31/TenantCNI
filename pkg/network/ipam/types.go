@@ -12,9 +12,10 @@ type NodeIPAM struct {
 	nextTenantIP  net.IP
 	allowedNew    bool
 	store         *store.DataStore
-	tenants       []TenantIPAM
 }
 
+//tenants are saved on different files due to the fact that different go routines may be changing settings.
+//Since we can have seperate files than we can avoid some possible concurrent accesses to files thus allowing for faster configuration
 type TenantIPAM struct {
 	tenantCIDR		*net.IPNet
 	bridge			*Bridge
