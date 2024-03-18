@@ -38,18 +38,19 @@ func GetCurrentNodeName(clientset *kubernetes.Clientset) (string, error) {
 	return os.Getenv("MY_NODE_NAME"), nil
 }
 
-func GetKubeClientSet() *kubernetes.Clientset {
+func GetKubeClientSet() (*kubernetes.Clientset, error) {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Printf("Failed to build in cluster config: %s", err.Error())
+		return nil, err
 	}
 
 	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Printf("Error building kubernetes clientset: %s", err.Error())
+		return nil, err
 	}
-	return kubeClientset
+	return kubeClientset, nil
 
 }
 
@@ -75,29 +76,26 @@ func InitKubeConfig() (*rest.Config, error) {
 
 }
 
-func GetNodeCIDR() string{
-	nodeList := GetNodes()
-	currentNodeName, err := GetCurrentNodeName(GetKubeClientSet())
-	currentNodeCIDR := ""
-	if err != nil{
-
-	}
+func GetNodeCIDR(nodeList *v1.NodeList, currentNodeName string) (string, error){
+	
+	var currentNodeCIDR string
 	for _, node := range nodeList.Items{
 
 		if currentNodeName == node.Name{
 			currentNodeCIDR = node.Spec.PodCIDR
 		}
 	}
-	return currentNodeCIDR
+	return currentNodeCIDR, nil
 
 }
 
-func GetNodes()*v1.NodeList{
+func GetNodes(clientset *kubernetes.Clientset) (*v1.NodeList, error){
 
-	nodes, err:=GetKubeClientSet().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err:=clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 
-		log.Print("Not able to retrieve ")
+		log.Printf("Failed to retrieve nodes: %s", err.Error())
+		return nil, err
 	}
-	return nodes
+	return nodes, nil
 }

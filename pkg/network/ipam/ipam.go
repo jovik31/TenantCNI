@@ -12,3 +12,33 @@ import(
 func AllocateTenant()
 
 func AllocateIP()
+
+
+
+func getTenantIP() (string, error) {
+	//Get tenant IP from the tenant store
+	//If the tenant does not exist, return an error
+
+
+}
+
+
+func newTenantIPAM() (*TenantIPAM, error) {
+	//Create a new tenant IPAM struct
+	//Return the struct and an error if any
+}
+
+
+
+func newNodeIPAM(store *NodeDataStore ) (*NodeIPAM, error) {
+	//Create a new node IPAM struct
+	//Return the struct and an error if any
+
+	ni := &NodeIPAM{
+		NodeIP: ipVal,
+		NodeCIDR: network,
+		NextTenantIP: getNextTenantIP(),
+		Tenants: make(map[string] *TenantData),
+
+	}
+}
