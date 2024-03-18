@@ -10,7 +10,10 @@ import (
 
 func existsNode(nodeList []tenantType.Node) bool {
 
-	kubeSet := k8s.GetKubeClientSet()
+	kubeSet, err := k8s.GetKubeClientSet()
+	if err != nil {
+		log.Print("Error getting kube client set: ", err.Error())
+	}
 	currentNodeName, err := k8s.GetCurrentNodeName(kubeSet)
 
 	if err != nil {

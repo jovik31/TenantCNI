@@ -1,7 +1,6 @@
 package main
 
 import (
-
 	"log"
 	"time"
 
@@ -11,16 +10,14 @@ import (
 	tenantRegistration "github.com/jovik31/tenant/pkg/crd"
 	kubecnf "github.com/jovik31/tenant/pkg/k8s"
 
-
-	//"github.com/jovik31/tenant/pkg/network/ipam"
+	"github.com/jovik31/tenant/pkg/network/ipam"
 )
 
 var (
-	defaultTenantDir = "/var/lib/cni/tenants/"
+	defaultNodeDir = "/var/lib/cni/tenantcni"
 )
 
 func main() {
-
 
 	//init kubernetes client for initial configurations
 	config, err := kubecnf.InitKubeConfig()
@@ -39,6 +36,7 @@ func main() {
 	tenantRegistration.RegisterDefaultTenant(tenantClient)
 
 	//Get kubeclientset
+
 	kubeclientset, err := kubecnf.GetKubeClientSet()
 	if err != nil {
 		log.Printf("Error building kubernetes clientset: %s", err.Error())
@@ -55,19 +53,26 @@ func main() {
 		log.Printf("Error getting node list: %s", err.Error())
 	}
 	//Get current node CIDR
-	nodeCIDR, err:= kubecnf.GetNodeCIDR(nodeList, currentNodeName)
+	nodeCIDR, err := kubecnf.GetNodeCIDR(nodeList, currentNodeName)
 	if err != nil {
 		log.Printf("Error getting node CIDR: %s", err.Error())
 	}
-
-	//TO DO
-	//currentNodeIP := kubecnf.GetCurrentNodeIP(kubeclientset)
+	currentNodeIP, err := kubecnf.GetCurrentNodeIP(kubeclientset, currentNodeName)
+	if err != nil {
+		log.Printf("Error getting current node IP: %s", err.Error())
+	}
 
 	//Create a new node store for the current node with the nodeCIDR
-	//nodeStore, err := ipam.NewNodeStore(defaultTenantDir, nodeCIDR, currentNodeName, currentNodeIP)
+	nodeStore, err := ipam.NewNodeStore(defaultNodeDir, nodeCIDR, currentNodeName, currentNodeIP)
+	if err != nil {
+		log.Printf("Error creating node store: %s", err.Error())
+	}
 
-	//Create a new node IPAM
-
+	//Store node data onto filesystem
+	err = nodeStore.StoreNodeData()
+	if err != nil {
+		log.Printf("Error storing node data: %s", err.Error())
+	}
 	//Start controller on a go routine
 	ch := make(chan struct{})
 	informersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)

@@ -76,12 +76,12 @@ func InitKubeConfig() (*rest.Config, error) {
 
 }
 
-func GetNodeCIDR(nodeList *v1.NodeList, currentNodeName string) (string, error){
-	
-	var currentNodeCIDR string
-	for _, node := range nodeList.Items{
+func GetNodeCIDR(nodeList *v1.NodeList, currentNodeName string) (string, error) {
 
-		if currentNodeName == node.Name{
+	var currentNodeCIDR string
+	for _, node := range nodeList.Items {
+
+		if currentNodeName == node.Name {
 			currentNodeCIDR = node.Spec.PodCIDR
 		}
 	}
@@ -89,13 +89,33 @@ func GetNodeCIDR(nodeList *v1.NodeList, currentNodeName string) (string, error){
 
 }
 
-func GetNodes(clientset *kubernetes.Clientset) (*v1.NodeList, error){
+func GetNodes(clientset *kubernetes.Clientset) (*v1.NodeList, error) {
 
-	nodes, err:=clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 
 		log.Printf("Failed to retrieve nodes: %s", err.Error())
 		return nil, err
 	}
 	return nodes, nil
+}
+
+func GetCurrentNodeIP(clientset *kubernetes.Clientset, currentNodeName string) (string, error) {
+
+	nodeIP := os.Getenv("MY_NODE_IP")
+	if nodeIP == "" {
+
+		node, err := clientset.CoreV1().Nodes().Get(context.TODO(), currentNodeName, metav1.GetOptions{})
+		if err != nil {
+			log.Printf("Failed to retrieve node: %s", err.Error())
+			return "", err
+		}
+		for _, address := range node.Status.Addresses {
+			if address.Type == "InternalIP" {
+				nodeIP = address.Address
+			}
+		}
+	}
+
+	return nodeIP, nil
 }

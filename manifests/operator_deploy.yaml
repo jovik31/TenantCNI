@@ -100,11 +100,11 @@ spec:
           capabilities:
             add: ["NET_ADMIN", "NET_RAW"]
         volumeMounts:
-        - name: var-cni-tenants
-          mountPath: /var/cni/tenants
+        - name: var-lib-cni-tenantcni
+          mountPath: /var/lib/cni/tenantcni
       volumes:
-        - name: var-cni-tenants
+        - name: var-lib-cni-tenantcni
           hostPath:
-            path: /var/cni/tenants
+            path: /var/lib/cni/tenantcni
       hostNetwork: true
       serviceAccountName: tenant-service-account
