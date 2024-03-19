@@ -12,7 +12,7 @@ import (
 
 
 type NodeIPAM struct {
-	NodeName string `json:"name,omitempty"`
+	NodeName string 
 	NodeStore *NodeStore
 }
 
@@ -25,7 +25,7 @@ type NodeData struct {
 	NodeIP		netip.Addr `json:"nodeIP,omitempty"`
 	NodeCIDR	netip.Prefix `json:"nodeCIDR,omitempty"`
 	AvailableList	[]string `json:"availableList"`
-	TenantList	map[string]string `json:"tenantList"`
+	TenantList	map[string]netip.Prefix `json:"tenantList"`
 	
 }
 
@@ -40,7 +40,7 @@ type TenantData struct {
 }
 
 type NodeStore struct {
-	FileMutex	*filemutex.FileMutex
+	*filemutex.FileMutex
 	Directory	string		
 	Data     	*NodeData
 	DataFile 	string
@@ -48,7 +48,7 @@ type NodeStore struct {
 
 
 type TenantStore struct {
-	FileMutex	*filemutex.FileMutex
+	*filemutex.FileMutex
 	Directory	string
 	Data     	*TenantData
 	DataFile 	string
