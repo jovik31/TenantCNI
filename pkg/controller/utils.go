@@ -2,23 +2,11 @@ package controller
 
 import (
 	"fmt"
-	"log"
 
 	tenantType "github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
-	"github.com/jovik31/tenant/pkg/k8s"
 )
 
-func existsNode(nodeList []tenantType.Node) bool {
-
-	kubeSet, err := k8s.GetKubeClientSet()
-	if err != nil {
-		log.Print("Error getting kube client set: ", err.Error())
-	}
-	currentNodeName, err := k8s.GetCurrentNodeName(kubeSet)
-
-	if err != nil {
-		log.Print("Error getting current node name: ", err.Error())
-	}
+func existsNode(nodeList []tenantType.Node, currentNodeName string) bool {
 
 	for _, element := range nodeList {
 		if currentNodeName == element.Name {

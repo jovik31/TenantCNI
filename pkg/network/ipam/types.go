@@ -2,63 +2,71 @@ package ipam
 
 import (
 	"net"
+	"net/netip"
 
 	filemutex "github.com/alexflint/go-filemutex"
+
 )
 
+//All network IPs that have a mask cannot be parsed onto a readable format so we saved them as strings
+
+
 type NodeIPAM struct {
-	NodeIP        net.IP `json:"nodeIP,omitempty"`
-	NodeCIDR      *net.IPNet `json:"nodeCIDR,omitempty"`
-	NextTenantIP  *net.IPNet `json:"nextTenantIP,omitempty"`
-	//AllowedNew    bool `json:"allowedNew,omitempty"` //maybe not needed
-	Tenants       *TenantData `json:"tenants,omitempty"`
+	NodeName string `json:"name,omitempty"`
+	NodeStore *NodeStore
+}
+
+type TenantIPAM struct {
+	TenantName string
+	TenantStore *TenantStore
+}
+
+type NodeData struct {
+	NodeIP		netip.Addr `json:"nodeIP,omitempty"`
+	NodeCIDR	netip.Prefix `json:"nodeCIDR,omitempty"`
+	AvailableList	[]string `json:"availableList"`
+	TenantList	map[string]string `json:"tenantList"`
+	
 }
 
 type TenantData struct {
-	IPs map[string] *net.IPNet `json:"ips"`
-	LastIP string `json:"lastIP"`
-}
 
-//tenants are saved on different files due to the fact that different go routines may be changing settings.
-//Since we can have seperate files than we can avoid some possible concurrent accesses to files thus allowing for faster configuration
-type TenantIPAM struct {
-	TenantCIDR		*net.IPNet `json:"tenantCIDR,omitempty"`
+	TenantCIDR		netip.Prefix `json:"tenantCIDR,omitempty"`
 	Bridge			*Bridge `json:"bridge,omitempty"`
 	Vxlan        	*Vxlan `json:"vxlan,omitempty"`
+	
+	IPs map[string]ContainerNetInfo `json:"ips"`
+	Last string `json:"last"`
+}
+
+type NodeStore struct {
+	FileMutex	*filemutex.FileMutex
+	Directory	string		
+	Data     	*NodeData
+	DataFile 	string
+}
+
+
+type TenantStore struct {
+	FileMutex	*filemutex.FileMutex
+	Directory	string
+	Data     	*TenantData
+	DataFile 	string
 }
 
 type Bridge struct {
 	Name string `json:"name,omitempty"`
-	Gateway net.IP `json:"gateway,omitempty"`
+	Gateway netip.Addr `json:"gateway,omitempty"`
 }
 
 type Vxlan struct {
 	VtepName string `json:"vtepName,omitempty"`
-	VtepIP  net.IP
+	VtepIP  netip.Addr `json:"vtepIP,omitempty"`
 	VtepMac	net.HardwareAddr `json:"vtepMac,omitempty"`
 	VNI		int `json:"VNI,omitempty"`
 }
 
-type containerNetInfo struct {
+type ContainerNetInfo struct {
 	ID string `json:"id"`
 	IFname string `json:"ifname"`
-}
-
-type data struct {
-	IPs map[string]containerNetInfo `json:"ips"`
-	Last string `json:"last"`
-}
-
-type NodeDataStore struct {
-	FileMutex	*filemutex.FileMutex
-	directory	string		
-	data     	*NodeIPAM  
-	dataFile 	string
-}
-
-type TenantDataStore struct {
-	FileMutex	*filemutex.FileMutex
-	Directory	string
-	Data     	*TenantIPAM
-	DataFile 	string
 }

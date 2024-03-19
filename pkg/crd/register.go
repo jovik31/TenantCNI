@@ -99,7 +99,8 @@ func RegisterDefaultTenant(tenantClient *tenantClientset.Clientset) {
 
 	nodes := []v1alpha1.Node{
 		{Name: "kind-control-plane"},
-		{Name: "kind-worker"},
+		{Name: "kind-cluster-worker"},
+		{Name: "kind-cluster-worker2"},
 	}
 
 	tenant := &v1alpha1.Tenant{

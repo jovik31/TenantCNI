@@ -10,6 +10,8 @@ import (
 	tenantLister "github.com/jovik31/tenant/pkg/client/listers/jovik31.dev/v1alpha1"
 
 	bridge "github.com/jovik31/tenant/pkg/network/backend"
+	"github.com/jovik31/tenant/pkg/network/ipam"
+	"github.com/jovik31/tenant/pkg/k8s"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
@@ -17,7 +19,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )
-
+var (
+	defaultNodeDir = "/var/lib/cni/tenantcni"
+)
 type Controller struct {
 	//clientset for custom resource tenant
 	tenantClient tenantClientset.Interface
@@ -27,6 +31,7 @@ type Controller struct {
 	tenantLister tenantLister.TenantLister
 	//queue
 	workqueue workqueue.RateLimitingInterface
+
 }
 
 func NewController(tenantClient tenantClientset.Interface, tenantInformer tenantInformer.TenantInformer) *Controller {
@@ -35,6 +40,7 @@ func NewController(tenantClient tenantClientset.Interface, tenantInformer tenant
 		tenantSynced: tenantInformer.Informer().HasSynced,
 		tenantLister: tenantInformer.Lister(),
 		workqueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Tenant"),
+
 	}
 	tenantInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -98,9 +104,32 @@ func (c *Controller) processNextItem() bool {
 	}
 
 	newTenant := tenant.DeepCopy()
+	kubeSet, err := k8s.GetKubeClientSet()
+	if err != nil {
+		log.Print("Error getting kube client set: ", err.Error())
+	}
+	currentNodeName, err := k8s.GetCurrentNodeName(kubeSet)
 
-	if existsNode(newTenant.Spec.Nodes) {
+	if err != nil {
+		log.Print("Error getting current node name: ", err.Error())
+	}
 
+	if existsNode(newTenant.Spec.Nodes, currentNodeName) {
+
+		s, err :=ipam.NewNodeStore(defaultNodeDir,currentNodeName)
+		if err != nil {
+			log.Print("Error creating node store: ", err.Error())
+		}
+		s.LoadNodeData()
+		log.Println("Node store availList: ", s.Data.AvailableList)
+		log.Println("Node store ip: ", s.Data.NodeIP)
+		nim, err := ipam.NewNodeIPAM(s, currentNodeName)
+		if err != nil {
+			log.Print("Error creating node IPAM: ", err.Error())
+		}
+		log.Println("Node IPAM created: ", nim.NodeName)
+		log.Println(nim.NodeStore.Data.AvailableList)
+		
 		//create the tenant file if the tenant is present on the node
 		res, err := bridge.CreateTenantBridge(newTenant.Spec.Name, 1500, &net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.IPv4Mask(255, 255, 255, 255)})
 		if err != nil {
@@ -127,7 +156,7 @@ func (c *Controller) handleUpdate(oldObj, newObj interface{}) {
 	log.Print("Updating a tenant on the cluster")
 	key, err := cache.MetaNamespaceKeyFunc(newObj)
 	if err != nil {
-		log.Printf("Failed in add tenant Handler: %s  in calling key func on cached item", err.Error())
+		log.Printf("Failed in update tenant Handler: %s  in calling key func on cached item", err.Error())
 	}
 	c.workqueue.Add(key)
 

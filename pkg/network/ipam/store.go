@@ -3,10 +3,10 @@ package ipam
 import (
 	"encoding/json"
 	"log"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
-	//filemutex "github.com/alexflint/go-filemutex"
+	
 	//cip "github.com/containernetworking/plugins/pkg/ip"
 )
 
@@ -15,7 +15,7 @@ const (
 	tenantStoreDir = "/var/lib/cni/tenantcni"
 )
 
-func NewNodeStore(dataDir string, nodeCIDR string, nodeName string, nodeIP string) (*NodeDataStore, error) {
+func NewNodeStore(dataDir string, nodeName string) (*NodeStore, error) {
 
 	if dataDir == "" {
 		dataDir = nodeStoreDir
@@ -27,49 +27,143 @@ func NewNodeStore(dataDir string, nodeCIDR string, nodeName string, nodeIP strin
 			return nil, err
 		}
 	}
-
+	
 	mutex, err := newFileLock(dir)
 	if err != nil {
 		log.Printf("Failed in creating file lock for node store: %s", err.Error())
 	}
 	file := filepath.Join(dir, nodeName+".json")
-	ipVal := net.ParseIP(nodeIP)
-	_, network, err := net.ParseCIDR(nodeCIDR)
-	log.Println("Network Mask: ", network.Mask)
 
+	
 	if err != nil {
 		log.Printf("Failed in parsing CIDR: %s", err.Error())
 	}
 
-	nodeData := &NodeIPAM{
-		NodeIP:       ipVal,
-		NodeCIDR:     &net.IPNet{IP: network.IP, Mask: net.IPMask(network.Mask)},
-		NextTenantIP: getNextTenantIP(),
-		//AllowedNew: 	getMaxTenants(),
+	if err != nil {
+		log.Printf("Failed in parsing tenant CIDR: %s", err.Error())
 	}
 
-	return &NodeDataStore{
+	nodeData := &NodeData{
+		AvailableList: make([]string, 0),
+		TenantList: make(map[string]string),
+	}
+
+	return &NodeStore{
 		FileMutex: mutex,
-		directory: dir,
-		data:      nodeData,
-		dataFile:  file,
+		Directory: dir,
+		Data:      nodeData,
+		DataFile:  file,
 	}, nil
 
 }
 
-// Must check every tenant network to see if it is in use or not.
-// Two ways to do this: Maintain a list of all Tenant networks free to use, every time a tenant is created, delete the corresponding network from the list. When a tenant is deleted, add the network back to the list.
-func getNextTenantIP() *net.IPNet {
+func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 
-	return &net.IPNet{IP: net.IP{192, 168, 0, 0}, Mask: net.IPMask{255, 255, 255, 0}}
+	if dataDir == "" {
+		dataDir = tenantStoreDir
+	}
+
+	dir := filepath.Join(dataDir,tenantName)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, err
+		}
+	}
+
+	mutex, err := newFileLock(dir)
+	if err != nil {
+		log.Printf("Failed in creating file lock for node store: %s", err.Error())
+	}
+	file := filepath.Join(dir, tenantName+".json")
+
+	
+	if err != nil {
+		log.Printf("Failed in parsing CIDR: %s", err.Error())
+	}
+
+	if err != nil {
+		log.Printf("Failed in parsing tenant CIDR: %s", err.Error())
+	}
+
+	tenantData := &TenantData{
+		IPs: make(map[string]ContainerNetInfo),
+	}
+
+	return &TenantStore{
+		FileMutex: mutex,
+		Directory: dir,
+		Data:      tenantData,
+		DataFile:  file,
+	}, nil
+
 }
 
-func (s *NodeDataStore) StoreNodeData() error {
+func(s *NodeStore) AddAvailableTenantList(availList []string) error {
+	s.Data.AvailableList = availList
+	return s.StoreNodeData()
+}
 
-	raw, err := json.Marshal(s.data)
+func (s *NodeStore) AddNodeCIDR(nodeCIDR string) error {
+	var err error
+	s.Data.NodeCIDR, err = netip.ParsePrefix(nodeCIDR)
+	if err != nil {
+		return err
+	}
+	return s.StoreNodeData()
+}
+
+func (s *NodeStore) AddNodeIP(nodeIP string) error {
+
+	var err error
+	s.Data.NodeIP, err = netip.ParseAddr(nodeIP)
+	if err != nil {
+		return err
+	}
+	return s.StoreNodeData()
+}
+
+func (s *NodeStore) StoreNodeData() error {
+
+	raw, err := json.Marshal(s.Data)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(s.dataFile, raw, 0644)
+	return os.WriteFile(s.DataFile, raw, 0644)
+}
+
+
+func(s *NodeStore) LoadNodeData() error {
+	nodeData := &NodeData{}
+
+	raw, err := os.ReadFile(s.DataFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			f, err := os.Create(s.DataFile)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = f.Write([]byte("{}"))
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	} else {
+		if err := json.Unmarshal(raw, &nodeData); err != nil {
+			return err
+		}
+	}
+	if nodeData.TenantList == nil {
+		nodeData.TenantList = make(map[string]string)
+	}
+	if nodeData.AvailableList == nil {
+		nodeData.AvailableList = make([]string, 0)
+	}
+
+	s.Data = nodeData
+	return nil
 }
