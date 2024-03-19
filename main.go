@@ -69,17 +69,15 @@ func main() {
 	nim.NodeStore.AddNodeCIDR(nodeCIDR)
 
 	//List all available subnets for tenants in the current node
-	availList:= ipam.ListSubnets(nodeCIDR, 24)
+	availList := ipam.ListSubnets(nodeCIDR, 24)
 	nim.NodeStore.AddAvailableTenantList(availList)
-	
-	
 
 	//Get tenant client to start  controller and to be able to register our default tenant
 	tenantClient, err := tenant.NewForConfig(config)
 	if err != nil {
 		log.Printf("Error building tenant clientset: %s", err.Error())
 	}
-	
+
 	//Register default tenant in the k8s API
 	tenantRegistration.RegisterDefaultTenant(tenantClient)
 
@@ -88,11 +86,10 @@ func main() {
 	informersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
 	c := tenantController.NewController(tenantClient, informersFactory.Jovik31().V1alpha1().Tenants())
 	informersFactory.Start(ch)
-	if err := c.Run(ch); err != nil {
+	//Runs controller with 3 workers
+	if err := c.Run(ch, 3); err != nil {
 		log.Printf("Error running controller: %s\n", err.Error())
 	}
 	<-ch
-
-
 
 }

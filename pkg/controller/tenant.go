@@ -9,19 +9,22 @@ import (
 	tenantInformer "github.com/jovik31/tenant/pkg/client/informers/externalversions/jovik31.dev/v1alpha1"
 	tenantLister "github.com/jovik31/tenant/pkg/client/listers/jovik31.dev/v1alpha1"
 
+	"github.com/jovik31/tenant/pkg/k8s"
 	bridge "github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
-	"github.com/jovik31/tenant/pkg/k8s"
 
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )
+
 var (
 	defaultNodeDir = "/var/lib/cni/tenantcni"
 )
+
 type Controller struct {
 	//clientset for custom resource tenant
 	tenantClient tenantClientset.Interface
@@ -31,7 +34,6 @@ type Controller struct {
 	tenantLister tenantLister.TenantLister
 	//queue
 	workqueue workqueue.RateLimitingInterface
-
 }
 
 func NewController(tenantClient tenantClientset.Interface, tenantInformer tenantInformer.TenantInformer) *Controller {
@@ -40,7 +42,6 @@ func NewController(tenantClient tenantClientset.Interface, tenantInformer tenant
 		tenantSynced: tenantInformer.Informer().HasSynced,
 		tenantLister: tenantInformer.Lister(),
 		workqueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Tenant"),
-
 	}
 	tenantInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -56,14 +57,22 @@ func NewController(tenantClient tenantClientset.Interface, tenantInformer tenant
 	return c
 }
 
-func (c *Controller) Run(ch chan struct{}) error {
+func (c *Controller) Run(ch chan struct{}, workers int) error {
+
+	defer utilruntime.HandleCrash()
+	defer c.workqueue.ShutDown()
 
 	log.Print("Starting Tenant controller")
 	if ok := cache.WaitForCacheSync(ch, c.tenantSynced); !ok {
 		log.Println("Cache not synced")
 	}
-	go wait.Until(c.worker, time.Second, ch)
+	log.Println("Starting workers", "count", workers)
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.worker, time.Second, ch)
+	}
+	log.Println("Started workers")
 	<-ch
+	log.Println("Shutting down workers")
 	return nil
 }
 
@@ -116,7 +125,7 @@ func (c *Controller) processNextItem() bool {
 
 	if existsNode(newTenant.Spec.Nodes, currentNodeName) {
 
-		s, err :=ipam.NewNodeStore(defaultNodeDir,currentNodeName)
+		s, err := ipam.NewNodeStore(defaultNodeDir, currentNodeName)
 		if err != nil {
 			log.Print("Error creating node store: ", err.Error())
 		}
@@ -129,7 +138,7 @@ func (c *Controller) processNextItem() bool {
 		}
 		log.Println("Node IPAM created: ", nim.NodeName)
 		log.Println(nim.NodeStore.Data.AvailableList)
-		
+
 		//create the tenant file if the tenant is present on the node
 		res, err := bridge.CreateTenantBridge(newTenant.Spec.Name, 1500, &net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.IPv4Mask(255, 255, 255, 255)})
 		if err != nil {

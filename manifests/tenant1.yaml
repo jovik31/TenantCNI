@@ -5,6 +5,6 @@ metadata:
 spec:
   name: tenant4
   nodes:
-    - name: kind-cluster-worker
+    - name: kind-cluster-worker2
 
            
