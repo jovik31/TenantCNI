@@ -2,7 +2,6 @@ package ipam
 
 import (
 
-	//"net/netip"
 
 	"log"
 	"net/netip"
@@ -55,16 +54,48 @@ func ListSubnets(original string, newPrefix int) []string {
 	return subnetList
 }
 
-//(nim *NodeIPAM) func AllocateTenantCIDR(subnets []string) error {
+
+//Check if it is possible to create a tenantStore outside and pass it to the function only updating the tenantCIDR
+func (nim *NodeIPAM) AllocateTenantCIDR(tenantName string) error {
+	nim.NodeStore.Lock()
+	defer nim.NodeStore.Unlock()
+	
+	if err := nim.NodeStore.LoadNodeData(); err!= nil {
+
+		return  err
+	}
 
 
-//Open node store
-//Lock node store
-//Get first element from tenant list
-//Delete first element from tenant list
-//Write to node store
-//Unlock node store
-//Return first element
+	availableList := nim.NodeStore.Data.AvailableList
+	if len(availableList) <=0 {
+		log.Println("No more available subnets for tenants in this node")
+		return nil
+	}
+
+	tenantCIDR, err := netip.ParsePrefix(availableList[0])
+	if err !=nil{
+
+		log.Printf("Failed parsing tenant CIDR prefix from available list")
+	}
+
+	//Update values for available subnet slice and for tenants map
+	nim.NodeStore.Data.AvailableList = availableList[1:]
+	nim.NodeStore.Data.TenantList[tenantName]=tenantCIDR
+	nim.NodeStore.StoreNodeData()
+
+
+	tenantStore, err:= NewTenantStore(defaultStoreDir, tenantName)
+	if err != nil{
+		log.Printf("Failed to create a tenant Store")
+	}
+
+	tenantStore.Data.TenantCIDR= tenantCIDR
+
+
+	return tenantStore.StoreTenantData()
+
+}
+
 func GetTenantIP(tenantList []string) netip.Prefix {
 
 	subnet, err := netip.ParsePrefix(tenantList[0])
