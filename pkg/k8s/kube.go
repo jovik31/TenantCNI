@@ -16,6 +16,10 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+const (
+	tenantNodeAnnotationKey = "jovik31.dev/tenantcni"
+)
+
 func GetCurrentNodeName(clientset *kubernetes.Clientset) (string, error) {
 
 	nodeName := os.Getenv("MY_NODE_NAME")
@@ -119,3 +123,17 @@ func GetCurrentNodeIP(clientset *kubernetes.Clientset, currentNodeName string) (
 
 	return nodeIP, nil
 }
+
+func StoreTenantAnnotationNode(clientset *kubernetes.Clientset, node *v1.Node, tenantName string) error {
+
+	newNode := node.DeepCopy()
+	newNode.Annotations[tenantNodeAnnotationKey+"/"+tenantName] = "Enabled"
+	_, err := clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Failed to update node annotations: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func StoreTenantInfoCR() {}

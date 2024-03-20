@@ -1,9 +1,8 @@
 package ipam
 
 import (
-
-
 	"log"
+	"net"
 	"net/netip"
 
 	"github.com/seancfoley/ipaddress-go/ipaddr"
@@ -20,13 +19,13 @@ import (
 //func NewTenantIPAM() (*TenantIPAM, error) {
 //	//Create a new tenant IPAM struct
 //	//Return the struct and an error if any
-//	
+//
 //}
 
 func NewNodeIPAM(store *NodeStore, nodeName string) (*NodeIPAM, error) {
 
-	nim:= &NodeIPAM{
-		NodeName: nodeName,
+	nim := &NodeIPAM{
+		NodeName:  nodeName,
 		NodeStore: store,
 	}
 
@@ -35,8 +34,8 @@ func NewNodeIPAM(store *NodeStore, nodeName string) (*NodeIPAM, error) {
 
 func NewTenantIPAM(store *TenantStore, tenantName string) (*TenantIPAM, error) {
 
-	tim:= &TenantIPAM{
-		TenantName: tenantName,
+	tim := &TenantIPAM{
+		TenantName:  tenantName,
 		TenantStore: store,
 	}
 	return tim, nil
@@ -44,53 +43,60 @@ func NewTenantIPAM(store *TenantStore, tenantName string) (*TenantIPAM, error) {
 
 func ListSubnets(original string, newPrefix int) []string {
 
-    var subnetList []string
-    subnet := ipaddr.NewIPAddressString(original).GetAddress()
-   
-    iterator := subnet.SetPrefixLen(newPrefix).PrefixIterator()
-    for iterator.HasNext() {
-        subnetList = append(subnetList, iterator.Next().String())
-    }
+	var subnetList []string
+	subnet := ipaddr.NewIPAddressString(original).GetAddress()
+
+	iterator := subnet.SetPrefixLen(newPrefix).PrefixIterator()
+	for iterator.HasNext() {
+		subnetList = append(subnetList, iterator.Next().String())
+	}
 	return subnetList
 }
 
-
-//Check if it is possible to create a tenantStore outside and pass it to the function only updating the tenantCIDR
-func (nim *NodeIPAM) AllocateTenantCIDR(tenantName string) error {
+// Check if it is possible to create a tenantStore outside and pass it to the function only updating the tenantCIDR
+func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 	nim.NodeStore.Lock()
 	defer nim.NodeStore.Unlock()
-	
-	if err := nim.NodeStore.LoadNodeData(); err!= nil {
 
-		return  err
+	if err := nim.NodeStore.LoadNodeData(); err != nil {
+
+		return err
 	}
 
-
 	availableList := nim.NodeStore.Data.AvailableList
-	if len(availableList) <=0 {
+	if len(availableList) <= 0 {
 		log.Println("No more available subnets for tenants in this node")
 		return nil
 	}
 
 	tenantCIDR, err := netip.ParsePrefix(availableList[0])
-	if err !=nil{
+	if err != nil {
 
 		log.Printf("Failed parsing tenant CIDR prefix from available list")
 	}
 
 	//Update values for available subnet slice and for tenants map
 	nim.NodeStore.Data.AvailableList = availableList[1:]
-	nim.NodeStore.Data.TenantList[tenantName]=tenantCIDR
+	nim.NodeStore.Data.TenantList[tenantName] = tenantCIDR
 	nim.NodeStore.StoreNodeData()
 
-
-	tenantStore, err:= NewTenantStore(defaultStoreDir, tenantName)
-	if err != nil{
+	tenantStore, err := NewTenantStore(defaultStoreDir, tenantName)
+	if err != nil {
 		log.Printf("Failed to create a tenant Store")
 	}
 
-	tenantStore.Data.TenantCIDR= tenantCIDR
+	tenantStore.Data.TenantCIDR = tenantCIDR
 
+	tenantStore.Data.Bridge = &Bridge{
+		Name:    "br-" + tenantName,
+		Gateway: tenantCIDR.Addr().Next(),
+	}
+	tenantStore.Data.Vxlan = &Vxlan{
+		VtepName: "vx-" + tenantName,
+		VtepIP:   tenantCIDR.Addr(),
+		VtepMac:  net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		VNI:      tenantVNI,
+	}
 
 	return tenantStore.StoreTenantData()
 

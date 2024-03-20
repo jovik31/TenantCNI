@@ -2,12 +2,13 @@ package backend
 
 import (
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
 )
 
-func CreateTenantBridge(bridgeName string, mtu int, gateway *net.IPNet) (netlink.Link, error) {
+func CreateTenantBridge(bridgeName string, mtu int, gateway netip.Addr) (netlink.Link, error) {
 	if l, _ := netlink.LinkByName(bridgeName); l != nil {
 		return l, nil
 	}
@@ -29,7 +30,14 @@ func CreateTenantBridge(bridgeName string, mtu int, gateway *net.IPNet) (netlink
 		return nil, err
 	}
 
-	if err := netlink.AddrAdd(dev, &netlink.Addr{IPNet: gateway}); err != nil {
+	gatewayString := gateway.String()
+
+	_, ipnet, err := net.ParseCIDR(gatewayString)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := netlink.AddrAdd(dev, &netlink.Addr{IPNet: ipnet}); err != nil {
 		return nil, err
 	}
 
