@@ -14,16 +14,18 @@ type Tenant struct{
 	metav1.TypeMeta `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec TenantSpec `json:"spec,omitempty"`
+	Spec TenantSpec `json:"spec"`
 }
 
 type TenantSpec struct{
-	Name string `json:"name,omitempty"`
-	Nodes []Node `json:"nodes,omitempty"`
+	Name string `json:"name"`
+	VNI int `json:"vni"`
+	Prefix int `json:"prefix"`
+	Nodes []Node `json:"nodes"`
 }
 
 type Node struct{	
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 	VtepMac string `json:"vtepMac,omitempty"` //VTEP MAC address is saved using string format due to the fact that it generates an error with the cache informer, create string to Mac address 
 	VtepIp net.IP `json:"vtepIp,omitempty"`
 	NodeIP net.IP `json:"nodeIP,omitempty"`

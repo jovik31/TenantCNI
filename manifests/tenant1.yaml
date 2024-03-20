@@ -1,10 +1,13 @@
 apiVersion: jovik31.dev/v1alpha1
 kind: Tenant
 metadata:
-  name: tenant4
+  name: tenant1
 spec:
-  name: tenant4
+  name: tenant1
+  vni: 3
+  prefix: 24
   nodes:
     - name: kind-cluster-worker2
+    - name: kind-cluster-worker
 
            

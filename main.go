@@ -79,8 +79,8 @@ func main() {
 	}
 
 	//Register default tenant in the k8s API
-	tenantRegistration.RegisterDefaultTenant(tenantClient)
-
+	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
+	
 	//Start controller on a go routine
 	ch := make(chan struct{})
 	informersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)

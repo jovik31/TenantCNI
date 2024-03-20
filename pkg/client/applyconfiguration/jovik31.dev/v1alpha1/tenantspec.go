@@ -20,8 +20,10 @@ package v1alpha1
 // TenantSpecApplyConfiguration represents an declarative configuration of the TenantSpec type for use
 // with apply.
 type TenantSpecApplyConfiguration struct {
-	Name  *string                  `json:"name,omitempty"`
-	Nodes []NodeApplyConfiguration `json:"nodes,omitempty"`
+	Name   *string                  `json:"name,omitempty"`
+	VNI    *int                     `json:"vni,omitempty"`
+	Prefix *int                     `json:"tenantPrefix,omitempty"`
+	Nodes  []NodeApplyConfiguration `json:"nodes,omitempty"`
 }
 
 // TenantSpecApplyConfiguration constructs an declarative configuration of the TenantSpec type for use with
@@ -35,6 +37,22 @@ func TenantSpec() *TenantSpecApplyConfiguration {
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *TenantSpecApplyConfiguration) WithName(value string) *TenantSpecApplyConfiguration {
 	b.Name = &value
+	return b
+}
+
+// WithVNI sets the VNI field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the VNI field is set to the value of the last call.
+func (b *TenantSpecApplyConfiguration) WithVNI(value int) *TenantSpecApplyConfiguration {
+	b.VNI = &value
+	return b
+}
+
+// WithPrefix sets the Prefix field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Prefix field is set to the value of the last call.
+func (b *TenantSpecApplyConfiguration) WithPrefix(value int) *TenantSpecApplyConfiguration {
+	b.Prefix = &value
 	return b
 }
 

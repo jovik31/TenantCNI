@@ -6,6 +6,7 @@ import (
 
 	v1alpha1 "github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
 	tenantClientset "github.com/jovik31/tenant/pkg/client/clientset/versioned"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 
 	apixv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -47,6 +48,12 @@ func RegisterTenantCRD(config *rest.Config) {
 									"name": {
 										Type: "string",
 									},
+									"vni": {
+										Type: "integer",
+									},
+									"prefix": {	
+										Type: "integer",
+									},
 									"nodes": {
 										Type: "array",
 										Items: &apixv1.JSONSchemaPropsOrArray{
@@ -73,8 +80,10 @@ func RegisterTenantCRD(config *rest.Config) {
 										},
 									},
 								},
+								Required: []string{"name", "vni", "prefix", "nodes"},
 							},
 						},
+						Required: []string{"spec"},
 					},
 				},
 			}},
@@ -93,14 +102,14 @@ func RegisterTenantCRD(config *rest.Config) {
 }
 
 // TO DO
-func RegisterDefaultTenant(tenantClient *tenantClientset.Clientset) {
+func RegisterDefaultTenant(tenantClient *tenantClientset.Clientset, nodeList *v1.NodeList) {
 
 	//Check every node in cluster and add it to the nodes for default tenant
 
-	nodes := []v1alpha1.Node{
-		{Name: "kind-control-plane"},
-		{Name: "kind-cluster-worker"},
-		{Name: "kind-cluster-worker2"},
+	nodeNames := []v1alpha1.Node{}
+
+	for _, node := range nodeList.Items {
+		nodeNames = append(nodeNames, v1alpha1.Node{Name: node.Name})
 	}
 
 	tenant := &v1alpha1.Tenant{
@@ -113,7 +122,9 @@ func RegisterDefaultTenant(tenantClient *tenantClientset.Clientset) {
 		},
 		Spec: v1alpha1.TenantSpec{
 			Name:  "defaulttenant",
-			Nodes: nodes,
+			VNI:   1,
+			Prefix: 24,
+			Nodes: nodeNames,
 		},
 	}
 	_, err := tenantClient.Jovik31V1alpha1().Tenants("default").Create(context.TODO(), tenant, metav1.CreateOptions{FieldManager: "tenant-controller"})
