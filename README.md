@@ -2,16 +2,10 @@ Initial version of a k8s operator that registers a CRD to controll multi tenants
 
 
 To DO:
-  ADD VNI field to tenant CUstom resource definition and custom resource
 
-  On the default tenant custom resource add the dynamic finding of nodes so it deployes in every cluster node
-  Controller:
-    Check the possibility to use more thann 1 worker in the controller.
-      Possible do to file mutex usage for node and tenant files
     Differentiate between update and add handlers
       On add event:
         Create tenantStore:
-              - Add tenantCIDR
               - Add tenant Bridge IP (gateway)
               - Add tenant Bridge name
               Check if Vxlan is needed:
