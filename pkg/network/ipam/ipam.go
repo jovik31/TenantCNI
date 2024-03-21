@@ -94,7 +94,7 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 	tenantStore.Data.Vxlan = &Vxlan{
 		VtepName: "vx-" + tenantName,
 		VtepIP:   tenantCIDR.Addr(),
-		VtepMac:  net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		VtepMac:  net.HardwareAddr{0x10, 0x08, 0x12, 0x04, 0x04, 0x00},
 		VNI:      tenantVNI,
 	}
 

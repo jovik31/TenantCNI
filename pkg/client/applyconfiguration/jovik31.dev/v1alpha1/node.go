@@ -17,17 +17,13 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	net "net"
-)
-
 // NodeApplyConfiguration represents an declarative configuration of the Node type for use
 // with apply.
 type NodeApplyConfiguration struct {
 	Name    *string `json:"name,omitempty"`
 	VtepMac *string `json:"vtepMac,omitempty"`
-	VtepIp  *net.IP `json:"vtepIp,omitempty"`
-	NodeIP  *net.IP `json:"nodeIP,omitempty"`
+	VtepIp  *string `json:"vtepIp,omitempty"`
+	NodeIP  *string `json:"nodeIP,omitempty"`
 }
 
 // NodeApplyConfiguration constructs an declarative configuration of the Node type for use with
@@ -55,7 +51,7 @@ func (b *NodeApplyConfiguration) WithVtepMac(value string) *NodeApplyConfigurati
 // WithVtepIp sets the VtepIp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the VtepIp field is set to the value of the last call.
-func (b *NodeApplyConfiguration) WithVtepIp(value net.IP) *NodeApplyConfiguration {
+func (b *NodeApplyConfiguration) WithVtepIp(value string) *NodeApplyConfiguration {
 	b.VtepIp = &value
 	return b
 }
@@ -63,7 +59,7 @@ func (b *NodeApplyConfiguration) WithVtepIp(value net.IP) *NodeApplyConfiguratio
 // WithNodeIP sets the NodeIP field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the NodeIP field is set to the value of the last call.
-func (b *NodeApplyConfiguration) WithNodeIP(value net.IP) *NodeApplyConfiguration {
+func (b *NodeApplyConfiguration) WithNodeIP(value string) *NodeApplyConfiguration {
 	b.NodeIP = &value
 	return b
 }

@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"context"
 	"log"
+
 	//"net"
 	"time"
 
@@ -13,12 +15,14 @@ import (
 	//bridge "github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/client-go/util/retry"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	kError"k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -110,10 +114,11 @@ func (c *Controller) processNextItem() bool {
 	}
 
 	if objEvent.eventType == "Update" {
-
+		log.Println("Received Update")
 		err := c.updateTenant(objEvent)
 		if err != nil {
 			log.Printf("Failed with error: %s  in updating tenant\n", err.Error())
+
 			return false
 		}
 		c.workqueue.Forget(obj)
@@ -148,18 +153,14 @@ func (c *Controller) addTenant(key string) error {
 		return err
 	}
 
-	//Get the tenant by name
-	tenant, err := c.tenantLister.Tenants(namespace).Get(name)
+	//Get the newest tenant version
+	tenant, err := c.refreshTenant(namespace,name)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Printf("Tenant not found: %s  in getting tenant by name\n", err.Error())
-			return err
-		}
 		log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
 		return err
 	}
-	//make changes on the copy of the tenant
-	newTenant := tenant.DeepCopy()
+	//Every change we need to make to tenant is going to be done on a copy of the tenant
+	
 
 	//Get clientset to get current node name
 	kubeSet, err := k8s.GetKubeClientSet()
@@ -172,7 +173,8 @@ func (c *Controller) addTenant(key string) error {
 		log.Print("Error getting current node name: ", err.Error())
 	}
 
-	//Check if the current node is part of the tenant
+	//Check if the current node is part of the node list for the tenant
+	newTenant := tenant.DeepCopy()
 	if existsNode(newTenant.Spec.Nodes, currentNodeName) {
 
 		s, err := ipam.NewNodeStore(defaultNodeDir, currentNodeName)
@@ -184,7 +186,60 @@ func (c *Controller) addTenant(key string) error {
 		if err != nil {
 			log.Print("Error creating node IPAM: ", err.Error())
 		}
+		//Allocate and configure the tenant files with the information necessary
 		nim.AllocateTenant(newTenant.Spec.Name, newTenant.Spec.VNI)
+
+		//After configuring all the tenant files we need to set the currentNode annotations to show that the tenant is enabled
+		//And add the values for Vtep IP, Node IP and VtepMac Address on the tenant object
+		t, err:= ipam.NewTenantStore(defaultNodeDir, newTenant.Name)
+		if err!= nil{
+
+			log.Println("Error creating tenant store", err.Error())
+		}
+
+		t.LoadTenantData()
+		//Get access to the tenant information to register in the Tenant CIDR
+		tim, err :=ipam.NewTenantIPAM(t, newTenant.Name)
+		if err!=nil{
+			log.Println("Error creating tenant IPAM", err.Error())
+		}
+
+		//Set new tenant vxlan information to publish on the K8s API
+		for index, element := range newTenant.Spec.Nodes{
+
+			if element.Name == currentNodeName{
+
+				tenant, err := c.refreshTenant(namespace,name)
+				if err != nil {
+					log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
+					return err
+				}
+				newTenant = tenant.DeepCopy()
+				newTenant.Spec.Nodes[index].NodeIP = nim.NodeStore.Data.NodeIP.String()
+				newTenant.Spec.Nodes[index].VtepIp = tim.TenantStore.Data.Vxlan.VtepIP.String()
+				newTenant.Spec.Nodes[index].VtepMac = string(tim.TenantStore.Data.Vxlan.VtepMac)
+			}
+		}
+		//To DO: retry on conflict
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+		_, err=c.tenantClient.Jovik31V1alpha1().Tenants(namespace).Update(context.TODO(), newTenant, v1.UpdateOptions{ FieldManager: "tenant-controller"})
+		if err!=nil{
+			if kError.IsBadRequest(err){
+				log.Println("Failed with is Bad Request")
+
+			}
+			log.Println("Failed to update tenant resource on API")
+			return err
+		}
+
+		//If there is more than one node for this tenant then we need inter-node communication thus we need a vxlan interface
+		//if(len(newTenant.Spec.Nodes)>1){
+
+			//Create Vxlan Interface
+		//	CreateVxlanInterface()
+
+		//}
 
 		//To DO:
 		//Add annotations to the node to show that the tenant is present on the node

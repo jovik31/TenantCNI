@@ -22,7 +22,7 @@ package v1alpha1
 type TenantSpecApplyConfiguration struct {
 	Name   *string                  `json:"name,omitempty"`
 	VNI    *int                     `json:"vni,omitempty"`
-	Prefix *int                     `json:"tenantPrefix,omitempty"`
+	Prefix *int                     `json:"prefix,omitempty"`
 	Nodes  []NodeApplyConfiguration `json:"nodes,omitempty"`
 }
 

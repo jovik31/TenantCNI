@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	"net"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -18,17 +17,17 @@ type Tenant struct{
 }
 
 type TenantSpec struct{
-	Name string `json:"name"`
-	VNI int `json:"vni"`
-	Prefix int `json:"prefix"`
-	Nodes []Node `json:"nodes"`
+	Name string `json:"name"`//Tenant Name
+	VNI int `json:"vni"`//Tenant VNI identification
+	Prefix int `json:"prefix"`//Size of tenant CIDR to be deployed
+	Nodes []Node `json:"nodes"`//Node list where the tenant is deployed
 }
 
 type Node struct{	
-	Name string `json:"name"`
-	VtepMac string `json:"vtepMac,omitempty"` //VTEP MAC address is saved using string format due to the fact that it generates an error with the cache informer, create string to Mac address 
-	VtepIp net.IP `json:"vtepIp,omitempty"`
-	NodeIP net.IP `json:"nodeIP,omitempty"`
+	Name string `json:"name"` //Node name where the tenant is enabled
+	VtepMac string `json:"vtepMac,omitempty"` //VTEP Mac address is saved using string format due to the fact that it generates an error with the cache informer, create string to Mac address 
+	VtepIp string `json:"vtepIp,omitempty"` //IP of the Vtep device for this specific node and tenant
+	NodeIP string `json:"nodeIP,omitempty"` //Node IP where the tenant is deployed
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
