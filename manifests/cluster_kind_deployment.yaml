@@ -5,7 +5,7 @@ nodes:
 - role: worker
 - role: worker
 networking:
-  podSubnet: "10.0.0.0/16"
+  podSubnet: "10.244.0.0/16"
 #Configure the correct node CIDR mask size to be able to support tenants
 kubeadmConfigPatches:
 - |

@@ -2,9 +2,9 @@ package ipam
 
 import (
 	"log"
-	"net"
 	"net/netip"
 
+	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
@@ -85,16 +85,25 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 		log.Printf("Failed to create a tenant Store")
 	}
 
-	tenantStore.Data.TenantCIDR = tenantCIDR
+	tenantStore.Data.TenantCIDR = tenantCIDR.String()
 
+	//Generate a new bridge name for the tenant
 	tenantStore.Data.Bridge = &Bridge{
 		Name:    "br-" + tenantName,
 		Gateway: tenantCIDR.Addr().Next(),
 	}
+
+	//Generate a new hardware address for the Vxlan device
+	macAddress, err := backend.NewHardwareAddr()
+	if err != nil {
+		log.Println("Failed to generate a new hardware address")
+	}
+
+	//Store the Vxlan information on the tenant store
 	tenantStore.Data.Vxlan = &Vxlan{
 		VtepName: "vx-" + tenantName,
-		VtepIP:   tenantCIDR.Addr(),
-		VtepMac:  net.HardwareAddr{0x10, 0x08, 0x12, 0x04, 0x04, 0x00},
+		VtepIP:   tenantCIDR.Addr().String(),
+		VtepMac:  macAddress,
 		VNI:      tenantVNI,
 	}
 

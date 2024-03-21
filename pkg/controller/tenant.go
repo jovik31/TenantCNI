@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	//"net"
@@ -19,10 +20,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 	"k8s.io/client-go/util/retry"
-
-	kError"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/workqueue"
 )
 
 var (
@@ -63,13 +62,17 @@ func NewController(tenantClient tenantClientset.Interface, tenantInformer tenant
 
 func (c *Controller) Run(ch chan struct{}, workers int) error {
 
+	//Avoids panicking the controller
 	defer utilruntime.HandleCrash()
+
+	//makes sure the workqueue is shutdown, this triggers the workers to end
 	defer c.workqueue.ShutDown()
 
 	log.Print("Starting Tenant controller")
 	if ok := cache.WaitForCacheSync(ch, c.tenantSynced); !ok {
 		log.Println("Cache not synced")
 	}
+
 	log.Println("Starting workers", "count", workers)
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.worker, time.Second, ch)
@@ -94,6 +97,8 @@ func (c *Controller) processNextItem() bool {
 		log.Print("Worker queue is shudown")
 		return false
 	}
+
+	//Indicate the queue we finished a task
 	defer c.workqueue.Done(obj)
 
 	objEvent, ok := obj.(*EventObject)
@@ -102,46 +107,52 @@ func (c *Controller) processNextItem() bool {
 		return false
 	}
 
+	var err error
 	if objEvent.eventType == "Add" {
-		err := c.addTenant(objEvent.key)
-		if err != nil {
-			log.Printf("Failed with error: %s  in adding tenant\n", err.Error())
-			return false
+		err = c.addTenant(objEvent.key)
+		if err == nil {
+			//No errors in adding a tenant, tell the queue to stop tracking history for this object
+			c.workqueue.Forget(obj)
+			return true
 		}
 
-		c.workqueue.Forget(obj)
-		return true
 	}
 
 	if objEvent.eventType == "Update" {
-		log.Println("Received Update")
-		err := c.updateTenant(objEvent)
-		if err != nil {
-			log.Printf("Failed with error: %s  in updating tenant\n", err.Error())
 
-			return false
+		err = c.updateTenant(objEvent)
+		if err == nil {
+
+			//No errors in updating a tenant, tell the queue to stop tracking history for this object
+			c.workqueue.Forget(obj)
+			return true
 		}
-		c.workqueue.Forget(obj)
-		return true
-
 	}
 
 	if objEvent.eventType == "Delete" {
 
-		err := c.deleteTenant(objEvent)
-		if err != nil {
-			log.Printf("Failed with error: %s  in deleting tenant\n", err.Error())
-			return false
+		err = c.deleteTenant(objEvent)
+		if err == nil {
+			//No errors in deleting a tenant, tell the queue to stop tracking history for this object
+			c.workqueue.Forget(obj)
+			return true
 		}
 		c.workqueue.Forget(obj)
 		return true
 
-	} else {
+	}
+	if objEvent.eventType != "Add" && objEvent.eventType != "Update" && objEvent.eventType != "Delete" {
 
 		log.Printf("Event is not of add, update or delete: Error %s  in processing next item\n", objEvent.eventType)
 		c.workqueue.Forget(obj)
-		return true
+		return false
 	}
+
+	utilruntime.HandleError(fmt.Errorf("%v failed with : %v", obj, err))
+
+	c.workqueue.Forget(obj)
+
+	return true
 
 }
 
@@ -154,13 +165,12 @@ func (c *Controller) addTenant(key string) error {
 	}
 
 	//Get the newest tenant version
-	tenant, err := c.refreshTenant(namespace,name)
+	tenant, err := c.refreshTenant(namespace, name)
 	if err != nil {
 		log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
 		return err
 	}
 	//Every change we need to make to tenant is going to be done on a copy of the tenant
-	
 
 	//Get clientset to get current node name
 	kubeSet, err := k8s.GetKubeClientSet()
@@ -191,52 +201,52 @@ func (c *Controller) addTenant(key string) error {
 
 		//After configuring all the tenant files we need to set the currentNode annotations to show that the tenant is enabled
 		//And add the values for Vtep IP, Node IP and VtepMac Address on the tenant object
-		t, err:= ipam.NewTenantStore(defaultNodeDir, newTenant.Name)
-		if err!= nil{
+		t, err := ipam.NewTenantStore(defaultNodeDir, newTenant.Name)
+		if err != nil {
 
 			log.Println("Error creating tenant store", err.Error())
 		}
 
 		t.LoadTenantData()
 		//Get access to the tenant information to register in the Tenant CIDR
-		tim, err :=ipam.NewTenantIPAM(t, newTenant.Name)
-		if err!=nil{
+		tim, err := ipam.NewTenantIPAM(t, newTenant.Name)
+		if err != nil {
 			log.Println("Error creating tenant IPAM", err.Error())
 		}
 
 		//Set new tenant vxlan information to publish on the K8s API
-		for index, element := range newTenant.Spec.Nodes{
+		for index, element := range newTenant.Spec.Nodes {
 
-			if element.Name == currentNodeName{
+			if element.Name == currentNodeName {
 
-				tenant, err := c.refreshTenant(namespace,name)
+				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					tenant, err := c.refreshTenant(namespace, name)
+					if err != nil {
+						log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
+						return err
+					}
+
+					newTenant = tenant.DeepCopy()
+					newTenant.Spec.Nodes[index].NodeIP = nim.NodeStore.Data.NodeIP
+					newTenant.Spec.Nodes[index].VtepIp = tim.TenantStore.Data.Vxlan.VtepIP
+					newTenant.Spec.Nodes[index].VtepMac = tim.TenantStore.Data.Vxlan.VtepMac
+
+					//Try to update resource
+					_, err = c.tenantClient.Jovik31V1alpha1().Tenants(namespace).Update(context.TODO(), newTenant, v1.UpdateOptions{FieldManager: "tenant-controller"})
+					return err
+				})
 				if err != nil {
-					log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
+					log.Println("Failed to update tenant resource on API")
 					return err
 				}
-				newTenant = tenant.DeepCopy()
-				newTenant.Spec.Nodes[index].NodeIP = nim.NodeStore.Data.NodeIP.String()
-				newTenant.Spec.Nodes[index].VtepIp = tim.TenantStore.Data.Vxlan.VtepIP.String()
-				newTenant.Spec.Nodes[index].VtepMac = string(tim.TenantStore.Data.Vxlan.VtepMac)
 			}
-		}
-		//To DO: retry on conflict
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
-		_, err=c.tenantClient.Jovik31V1alpha1().Tenants(namespace).Update(context.TODO(), newTenant, v1.UpdateOptions{ FieldManager: "tenant-controller"})
-		if err!=nil{
-			if kError.IsBadRequest(err){
-				log.Println("Failed with is Bad Request")
-
-			}
-			log.Println("Failed to update tenant resource on API")
-			return err
 		}
 
 		//If there is more than one node for this tenant then we need inter-node communication thus we need a vxlan interface
 		//if(len(newTenant.Spec.Nodes)>1){
 
-			//Create Vxlan Interface
+		//Create Vxlan Interface
 		//	CreateVxlanInterface()
 
 		//}

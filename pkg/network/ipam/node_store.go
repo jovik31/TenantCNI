@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	
 )
 
 func NewNodeStore(dataDir string, nodeName string) (*NodeStore, error) {
@@ -21,14 +20,13 @@ func NewNodeStore(dataDir string, nodeName string) (*NodeStore, error) {
 			return nil, err
 		}
 	}
-	
+
 	mutex, err := newFileLock(dir)
 	if err != nil {
 		log.Printf("Failed in creating file lock for node store: %s", err.Error())
 	}
 	file := filepath.Join(dir, nodeName+".json")
 
-	
 	if err != nil {
 		log.Printf("Failed in parsing CIDR: %s", err.Error())
 	}
@@ -39,7 +37,7 @@ func NewNodeStore(dataDir string, nodeName string) (*NodeStore, error) {
 
 	nodeData := &NodeData{
 		AvailableList: make([]string, 0),
-		TenantList: make(map[string]netip.Prefix),
+		TenantList:    make(map[string]netip.Prefix),
 	}
 
 	return &NodeStore{
@@ -51,15 +49,14 @@ func NewNodeStore(dataDir string, nodeName string) (*NodeStore, error) {
 
 }
 
-
-func(s *NodeStore) AddAvailableTenantList(availList []string) error {
+func (s *NodeStore) AddAvailableTenantList(availList []string) error {
 	s.Data.AvailableList = availList
 	return s.StoreNodeData()
 }
 
 func (s *NodeStore) AddNodeCIDR(nodeCIDR string) error {
 	var err error
-	s.Data.NodeCIDR, err = netip.ParsePrefix(nodeCIDR)
+	s.Data.NodeCIDR = nodeCIDR
 	if err != nil {
 		return err
 	}
@@ -69,14 +66,14 @@ func (s *NodeStore) AddNodeCIDR(nodeCIDR string) error {
 func (s *NodeStore) AddNodeIP(nodeIP string) error {
 
 	var err error
-	s.Data.NodeIP, err = netip.ParseAddr(nodeIP)
+	s.Data.NodeIP = nodeIP
 	if err != nil {
 		return err
 	}
 	return s.StoreNodeData()
 }
 
-//Store node data to a json file
+// Store node data to a json file
 func (s *NodeStore) StoreNodeData() error {
 
 	raw, err := json.Marshal(s.Data)
@@ -87,8 +84,8 @@ func (s *NodeStore) StoreNodeData() error {
 	return os.WriteFile(s.DataFile, raw, 0644)
 }
 
-//Load node data to a node store
-func(s *NodeStore) LoadNodeData() error {
+// Load node data to a node store
+func (s *NodeStore) LoadNodeData() error {
 	nodeData := &NodeData{}
 
 	raw, err := os.ReadFile(s.DataFile)
