@@ -61,14 +61,13 @@ func AddRoutes(localVtepID int, remoteTenantCIDR *net.IPNet, remoteVtepIP net.IP
 		Dst:       &net.IPNet{IP: remoteVtepIP, Mask: net.CIDRMask(32, 32)},
 		Flags:     syscall.RTNH_F_ONLINK,
 	})
-	log.Printf("Adding route to %s via %s", remoteTenantCIDR.String(), remoteVtepIP.String())
 
 	netlink.RouteAdd(&netlink.Route{
 		LinkIndex: localVtepID,
 		Scope:     netlink.SCOPE_UNIVERSE,
 		Dst:       remoteTenantCIDR,
 		Gw:        remoteVtepIP,
-		Flags:    syscall.RTNH_F_ONLINK,
+		Flags:    syscall.RTNH_F_ONLINK, //Check if this is the correct flag or necessary
 	})
 	log.Printf("Adding route to %s via %s", remoteTenantCIDR.String(), remoteVtepIP.String())
 
