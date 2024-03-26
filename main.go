@@ -86,8 +86,8 @@ func main() {
 	informersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
 	c := tenantController.NewController(tenantClient, informersFactory.Jovik31().V1alpha1().Tenants())
 	informersFactory.Start(ch)
-	//Runs controller with 3 workers
-	if err := c.Run(ch, 3); err != nil {
+	
+	if err := c.Run(ch); err != nil {
 		log.Printf("Error running controller: %s\n", err.Error())
 	}
 	<-ch

@@ -1,13 +1,14 @@
 package routing
 
 import (
+	"log"
 	"net"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
 )
 
-func AddArp(localVtepID int, remoteVtepIP net.IP, remoteVtepMac net.HardwareAddr) error {
+func AddARP(localVtepID int, remoteVtepIP net.IP, remoteVtepMac net.HardwareAddr) error {
 
 	return netlink.NeighSet(&netlink.Neigh{
 		LinkIndex:    localVtepID,
@@ -16,4 +17,66 @@ func AddArp(localVtepID int, remoteVtepIP net.IP, remoteVtepMac net.HardwareAddr
 		IP:           remoteVtepIP,
 		HardwareAddr: remoteVtepMac,
 	})
+}
+
+func DelARP(localVtepID int, remoteVtepIP net.IP, remoteVtepMac net.HardwareAddr) error {
+
+	return netlink.NeighDel(&netlink.Neigh{
+		LinkIndex:    localVtepID,
+		State:        netlink.NUD_PERMANENT,
+		Type:         syscall.RTN_UNICAST,
+		IP:           remoteVtepIP,
+		HardwareAddr: remoteVtepMac,
+	})
+}
+
+func AddFDB(localVtepID int, remoteHostIP net.IP, remoteVtepMac net.HardwareAddr) error {
+	return netlink.NeighSet(&netlink.Neigh{
+		LinkIndex:    localVtepID,
+		Family:       syscall.AF_BRIDGE,
+		State:        netlink.NUD_PERMANENT,
+		Flags:        netlink.NTF_SELF,
+		IP:           remoteHostIP,
+		HardwareAddr: remoteVtepMac,
+	})
+}
+
+func DelFDB(localVtepID int, remoteHostIP net.IP, remoteVtepMac net.HardwareAddr) error {
+	return netlink.NeighDel(&netlink.Neigh{
+		LinkIndex:    localVtepID,
+		Family:       syscall.AF_BRIDGE,
+		State:        netlink.NUD_PERMANENT,
+		Flags:        netlink.NTF_SELF,
+		IP:           remoteHostIP,
+		HardwareAddr: remoteVtepMac,
+	})
+}
+
+
+func AddRoutes(localVtepID int, remoteTenantCIDR *net.IPNet, remoteVtepIP net.IP) error {
+
+	netlink.RouteAdd(&netlink.Route{
+		LinkIndex: localVtepID,
+		Scope:     netlink.SCOPE_UNIVERSE,
+		Dst:       &net.IPNet{IP: remoteVtepIP, Mask: net.CIDRMask(32, 32)},
+		Flags:     syscall.RTNH_F_ONLINK,
+	})
+	log.Printf("Adding route to %s via %s", remoteTenantCIDR.String(), remoteVtepIP.String())
+
+	netlink.RouteAdd(&netlink.Route{
+		LinkIndex: localVtepID,
+		Scope:     netlink.SCOPE_UNIVERSE,
+		Dst:       remoteTenantCIDR,
+		Gw:        remoteVtepIP,
+		Flags:    syscall.RTNH_F_ONLINK,
+	})
+	log.Printf("Adding route to %s via %s", remoteTenantCIDR.String(), remoteVtepIP.String())
+
+	netlink.RouteDel(&netlink.Route{
+		LinkIndex: localVtepID,
+		Scope:     netlink.SCOPE_UNIVERSE,
+		Dst:       &net.IPNet{IP: remoteVtepIP, Mask: net.CIDRMask(32, 32)},
+		Flags:     syscall.RTNH_F_ONLINK,
+	})
+	return nil
 }
