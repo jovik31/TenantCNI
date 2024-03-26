@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	tenantNodeAnnotationKey = "jovik31.dev/tenantcni"
+	tenantNodeAnnotationKey = "jovik31.dev.tenantcni"
 )
 
 func GetCurrentNodeName(clientset *kubernetes.Clientset) (string, error) {
@@ -124,11 +124,22 @@ func GetCurrentNodeIP(clientset *kubernetes.Clientset, currentNodeName string) (
 	return nodeIP, nil
 }
 
+func GetCurrentNode(clientset *kubernetes.Clientset, currentNodeName string) (*v1.Node, error){
+
+	node, err := clientset.CoreV1().Nodes().Get(context.TODO(), currentNodeName, metav1.GetOptions{})
+	if err!=nil{
+		log.Printf("Failed to retrieve node %s", err.Error())
+		return nil, err
+	}
+	return node, nil
+}
+
 func StoreTenantAnnotationNode(clientset *kubernetes.Clientset, node *v1.Node, tenantName string) error {
 
 	newNode := node.DeepCopy()
-	newNode.Annotations[tenantNodeAnnotationKey+"/"+tenantName] = "Enabled"
-	_, err := clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	
+	newNode.Labels[tenantNodeAnnotationKey+"."+tenantName] = "Enabled"
+	_, err := clientset.CoreV1().Nodes().Update(context.TODO(), newNode, metav1.UpdateOptions{})
 	if err != nil {
 		log.Printf("Failed to update node annotations: %s", err.Error())
 		return err

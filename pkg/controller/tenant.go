@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 
 	//"net"
 	"time"
 
+	"github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
 	tenantClientset "github.com/jovik31/tenant/pkg/client/clientset/versioned"
 	tenantInformer "github.com/jovik31/tenant/pkg/client/informers/externalversions/jovik31.dev/v1alpha1"
 	tenantLister "github.com/jovik31/tenant/pkg/client/listers/jovik31.dev/v1alpha1"
-	"github.com/vishvananda/netlink"
 
 	"github.com/jovik31/tenant/pkg/k8s"
 	//bridge "github.com/jovik31/tenant/pkg/network/backend"
@@ -244,53 +245,69 @@ func (c *Controller) addTenant(key string) error {
 			}
 
 		}
-		vxlanDevice, err := backend.InitVxlanDevice(tim.TenantStore.Data.TenantCIDR, tim.TenantStore.Data.Vxlan.VtepName, tim.TenantStore.Data.Vxlan.VNI, tim.TenantStore.Data.Vxlan.VtepMac)
-		if err != nil {
-			log.Println("Failed to create vxlan device")
-		}
+		//Tenant is present in more than one node. We need to setup vxlan for inter-node communication
+		if (len(newTenant.Spec.Nodes) > 1){
+			vxlanDevice, err := backend.InitVxlanDevice(tim.TenantStore.Data.TenantCIDR, tim.TenantStore.Data.Vxlan.VtepName, tim.TenantStore.Data.Vxlan.VNI, tim.TenantStore.Data.Vxlan.VtepMac)
+			if err != nil {
+				log.Println("Failed to create vxlan device")
+			}
 		log.Println("Vxlan device created: ", vxlanDevice.Name)
-		//If there is more than one node for this tenant then we need inter-node communication thus we need a vxlan interface
-		//if(len(newTenant.Spec.Nodes)>1){
 
-		//Create Vxlan Interface
-		//	CreateVxlanInterface()
 
-		//}
-
-		//To DO:
-		//Add annotations to the node to show that the tenant is present on the node
-
-		//Pods must have a enableTenant label and a tenant name annotation
-		link, err:=netlink.LinkByName(vxlanDevice.Name)
-		if err != nil {
-			log.Println("Failed to get link by name")
 		}
-		log.Println("Link by name: ", link.Attrs().Index)
+		//Retry the node annotation if it fails
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			log.Printf("Updating node")
+		//Add node annotation to signal that a tenant is present on this node
+			node, err:= k8s.GetCurrentNode(kubeSet, currentNodeName)
+			if err!= nil{
+				log.Printf("Failed to retrive node")
+			}
+	
+			err= k8s.StoreTenantAnnotationNode(kubeSet, node, tenant.Name)
+			return err
+		})
+		if err != nil {
+			log.Println("Failed to update Node resource on API")
+			return err
+		}
 		return nil
 	}
 
 	return nil
 
 }
-
-//log.Println("Node store availList: ", s.Data.AvailableList)
-//log.Println("Node store ip: ", s.Data.NodeIP)
-//nim, err := ipam.NewNodeIPAM(s, currentNodeName)
-//if err != nil {
-//log.Print("Error creating node IPAM: ", err.Error())
-//}
-//log.Println("Node IPAM created: ", nim.NodeName)
-//log.Println(nim.NodeStore.Data.AvailableList)
-
-//create the tenant file if the tenant is present on the node
-//res, err := bridge.CreateTenantBridge(newTenant.Spec.Name, 1500, &net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.IPv4Mask(255, 255, 255, 255)})
-//if err != nil {
-//log.Printf("Failed with error: %s  in creating tenant bridge\n", err.Error())
-//}
-//log.Print("Node exists in tenant", res)
-
 func (c *Controller) updateTenant(obj *EventObject) error {
-	log.Print(obj)
+
+	newTenant := obj.newObj.(*v1alpha1.Tenant)
+	oldTenant := obj.oldObj.(*v1alpha1.Tenant)
+	//Check if it was a resync update
+	if(newTenant == oldTenant){
+
+		log.Printf("Resync update, tenant is the same")
+		return nil
+	}
+	//Check if this node is allocated to the tenant
+
+
+	//If it reaches here, a change was made
+	if (!reflect.DeepEqual(newTenant.Spec.Nodes, oldTenant.Spec.Nodes)){
+
+			log.Println("No updates to node list of tenant")
+
+		return nil
+
+
+
+	}
+
+	
+
+
+
+
+
+	//First thing, check if current node exists on the Tenant
 
 	return nil
 
