@@ -3,6 +3,7 @@ package ipam
 import (
 	"log"
 	"net/netip"
+	"fmt"
 
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
@@ -99,11 +100,18 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 		log.Println("Failed to generate a new hardware address")
 	}
 
+	sMac:= macAddress.String()
+	if err != nil{
+
+		log.Println("Failed to convert hardware address to string")
+	}
 	//Store the Vxlan information on the tenant store
+	vtepName :=fmt.Sprintf("%s.%v", tenantName, tenantVNI)
+	log.Println(vtepName)
 	tenantStore.Data.Vxlan = &Vxlan{
-		VtepName: "vx-" + tenantName,
+		VtepName: vtepName,
 		VtepIP:   tenantCIDR.Addr().String(),
-		VtepMac:  macAddress,
+		VtepMac:  sMac,
 		VNI:      tenantVNI,
 	}
 

@@ -11,9 +11,11 @@ import (
 	tenantClientset "github.com/jovik31/tenant/pkg/client/clientset/versioned"
 	tenantInformer "github.com/jovik31/tenant/pkg/client/informers/externalversions/jovik31.dev/v1alpha1"
 	tenantLister "github.com/jovik31/tenant/pkg/client/listers/jovik31.dev/v1alpha1"
+	"github.com/vishvananda/netlink"
 
 	"github.com/jovik31/tenant/pkg/k8s"
 	//bridge "github.com/jovik31/tenant/pkg/network/backend"
+	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -242,7 +244,11 @@ func (c *Controller) addTenant(key string) error {
 			}
 
 		}
-
+		vxlanDevice, err := backend.InitVxlanDevice(tim.TenantStore.Data.TenantCIDR, tim.TenantStore.Data.Vxlan.VtepName, tim.TenantStore.Data.Vxlan.VNI, tim.TenantStore.Data.Vxlan.VtepMac)
+		if err != nil {
+			log.Println("Failed to create vxlan device")
+		}
+		log.Println("Vxlan device created: ", vxlanDevice.Name)
 		//If there is more than one node for this tenant then we need inter-node communication thus we need a vxlan interface
 		//if(len(newTenant.Spec.Nodes)>1){
 
@@ -255,6 +261,11 @@ func (c *Controller) addTenant(key string) error {
 		//Add annotations to the node to show that the tenant is present on the node
 
 		//Pods must have a enableTenant label and a tenant name annotation
+		link, err:=netlink.LinkByName(vxlanDevice.Name)
+		if err != nil {
+			log.Println("Failed to get link by name")
+		}
+		log.Println("Link by name: ", link.Attrs().Index)
 		return nil
 	}
 
