@@ -58,11 +58,29 @@ subjects:
   name: tenant-service-account
   namespace: default
 ---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kube-tenantcni-config
+  namespace: default
+  labels:
+    tier: node
+    app: tenant
+data:
+  cni-conf.json: |
+    {
+      "name": "tenantcni",
+      "cniVersion": "0.4.0",
+      "type": "tenantcni",
+      "dataDir": "/var/lib/cni/tenantcni",
+    }
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   creationTimestamp: null
   labels:
+    tier: node
     app: tenant
   name: tenant
 spec:
@@ -75,9 +93,45 @@ spec:
       labels:
         app: tenant
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      initContainers:
+      - name: install-cni
+        image: jovik31/tenant:1.1.0
+        command: 
+        - cp
+        args:
+        - f
+        - /tenant
+        - /opt/cni/bin/tenant
+        volumeMounts:
+        - name: cni-plugin
+          mountPath: /opt/cni/bin
+      - name: install-cni
+        image: jovik31/tenant:1.1.0
+        command: 
+        - cp
+        args:
+        - f
+        - /etc/tenant/cni-conf.json
+        - /etc/cni/net.d/10-tenant.conf
+        volumeMounts:
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: tenant
+          mountPath: /etc/tenantcni/
       containers:
-      - image: jovik31/tenant:0.1.0
+      - image: jovik31/tenant:1.1.0
         name: tenant
+        command:
+        - /tenantcni
         env:
         - name: MY_NODE_NAME
           valueFrom:
@@ -107,4 +161,8 @@ spec:
           hostPath:
             path: /var/lib/cni/tenantcni
       hostNetwork: true
+      priorityClassName: system-node-critical
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
       serviceAccountName: tenant-service-account

@@ -5,7 +5,7 @@ kind-delete:
 	kind delete cluster --name=kind-cluster
 
 create-image:
-	docker build -t jovik31/tenant:0.1.0 .
+	docker build -t jovik31/tenant:1.0.0 .
 
 
 kind-load-image:

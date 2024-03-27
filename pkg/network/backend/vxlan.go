@@ -4,10 +4,10 @@ import (
 	"net"
 	"strings"
 	"syscall"
+	"log"
 
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
-	"k8s.io/klog/v2"
 )
 
 func NewHardwareAddr() (net.HardwareAddr, error) {
@@ -99,7 +99,7 @@ func ensureVxlan(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 			return nil, errors.Errorf("link %s already exists but not vxlan device", vxlan.Name)
 		}
 
-		klog.Infof("vxlan device %s already exists", vxlan.Name)
+		log.Printf("vxlan device %s already exists", vxlan.Name)
 		return v, nil
 	}
 
@@ -107,7 +107,7 @@ func ensureVxlan(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 		return nil, errors.Wrapf(err, "get link %s error", vxlan.Name)
 	}
 
-	klog.Infof("vxlan device %s not found, and create it", vxlan.Name)
+		log.Printf("vxlan device %s not found, and create it", vxlan.Name)
 
 	if err = netlink.LinkAdd(vxlan); err != nil {
 		return nil, errors.Wrap(err, "LinkAdd error")
@@ -142,7 +142,7 @@ func InitVxlanDevice(podCidr string, vtepName string, vni int, vtepMac string) (
 	if len(existingAddrs) == 0 {
 		// 给vxlan设备配置IP
 		// 确保vxlan设备掩码是32位，防止自动出来一条广播路由
-		klog.Infof("config vxlan device %s ip: %s", vxlanLink.Name, cidr.IP)
+		log.Printf("config vxlan device %s ip: %s", vxlanLink.Name, cidr.IP)
 		if err = netlink.AddrAdd(vxlanLink, &netlink.Addr{
 			IPNet: &net.IPNet{
 				IP:   cidr.IP,
