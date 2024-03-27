@@ -10,7 +10,8 @@ To DO:
             Remove network routes
         Remove pods 
 
-CNI Part:
-    Bridging and IP management
+    CNI Part:
+        Bridging and IP management
+        Isolate traffic between tenants within the same node. Except comms to the default tenant
     
       
