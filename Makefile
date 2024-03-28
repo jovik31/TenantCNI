@@ -5,11 +5,12 @@ kind-delete:
 	kind delete cluster --name=kind-cluster
 
 create-image:
-	docker build -t jovik31/tenant:1.0.0 .
+	docker build -t jovik31/tenantcni:0.2.0 .
 
 
 kind-load-image:
-	kind load docker-image jovik31/tenant:0.1.0 --name=kind-cluster
+	kind load docker-image jovik31/tenantcni:0.2.0 --name=kind-cluster
 
 build:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
+

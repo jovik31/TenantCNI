@@ -8,6 +8,5 @@ spec:
   prefix: 24
   nodes:
     - name: kind-cluster-worker2
-    - name: kind-cluster-worker
 
            

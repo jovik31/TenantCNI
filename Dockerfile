@@ -1,6 +1,6 @@
 FROM golang:alpine as builder
 
-WORKDIR /tenant
+WORKDIR /tenantCNI
 COPY go.mod go.sum ./
 
 RUN go mod download
@@ -19,5 +19,5 @@ FROM alpine:latest
 RUN apk update && apk add --no-cache iptables
 
 WORKDIR /
-COPY --from=builder /tenant/bin/* /
+COPY --from=builder /tenantCNI/bin/* /
 
