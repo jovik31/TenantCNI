@@ -16,7 +16,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/jovik31/tenant/pkg/k8s"
-	
+
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 
@@ -24,9 +24,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
+
+	podInformers 	"k8s.io/client-go/informers/core/v1"
+	podLister		"k8s.io/client-go/listers/core/v1"
 )
 
 var (
@@ -36,19 +40,33 @@ var (
 type Controller struct {
 	//clientset for custom resource tenant
 	tenantClient tenantClientset.Interface
+
+	//kubeclientset for kubernetes API
+	kubeClient kubernetes.Interface
+	
 	//tenant has synced
 	tenantSynced cache.InformerSynced
+	//pods has synced
+	podSynced cache.InformerSynced
+
 	//lister
 	tenantLister tenantLister.TenantLister
+	//pod lister
+	podLister podLister.PodLister
+
 	//queue
 	workqueue workqueue.RateLimitingInterface
 }
 
-func NewController(tenantClient tenantClientset.Interface, tenantInformer tenantInformer.TenantInformer) *Controller {
+func NewController(ctx context.Context, tenantClient tenantClientset.Interface, kubeClient kubernetes.Interface,
+	tenantInformer tenantInformer.TenantInformer, kubeInformer podInformers.PodInformer) *Controller {
 	c := &Controller{
 		tenantClient: tenantClient,
+		kubeClient:   kubeClient,
 		tenantSynced: tenantInformer.Informer().HasSynced,
+		podSynced: 	  kubeInformer.Informer().HasSynced,
 		tenantLister: tenantInformer.Lister(),
+		podLister:    kubeInformer.Lister(),
 		workqueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Tenant"),
 	}
 	tenantInformer.Informer().AddEventHandler(
@@ -58,14 +76,19 @@ func NewController(tenantClient tenantClientset.Interface, tenantInformer tenant
 			DeleteFunc: c.handleDelete,
 		},
 	)
-	//Add node informer for checking what tenants are available on a node at a specific time
-	//Add the node informer to the controller and the Add and Delete functions for the cache ResourceEventHandlerFuncs
-	//nodeInformer.Informer().AddEventHandler(
+	//Add pod informer for checking what pods are available on a node at a specific time
+	kubeInformer.Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    c.handlePodAdd,
+			UpdateFunc: c.handlePodUpdate,
+			DeleteFunc: c.handlePodDelete,
+		},
+	)
 
 	return c
 }
 
-func (c *Controller) Run(ch chan struct{}) error {
+func (c *Controller) Run(ctx context.Context) error {
 
 	//Avoids panicking the controller
 	defer utilruntime.HandleCrash()
@@ -74,19 +97,19 @@ func (c *Controller) Run(ch chan struct{}) error {
 	defer c.workqueue.ShutDown()
 
 	log.Print("Starting Tenant controller")
-	if ok := cache.WaitForCacheSync(ch, c.tenantSynced); !ok {
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.tenantSynced, c.podSynced); !ok {
 		log.Println("Cache not synced")
 	}
 	
-	go wait.Until(c.worker, time.Second, ch)
+	go wait.UntilWithContext(ctx, c.worker, time.Second)
 	
 	log.Println("Started workers")
-	<-ch
+	<-ctx.Done()
 	log.Println("Shutting down workers")
 	return nil
 }
 
-func (c *Controller) worker() {
+func (c *Controller) worker(ctx context.Context) {
 	for c.processNextItem() {
 
 	}

@@ -6,7 +6,7 @@ nodes:
 - role: worker
 networking:
   podSubnet: "10.244.0.0/16"
-  disableDefaultCNI: true
+  #disableDefaultCNI: true
 #Configure the correct node CIDR mask size to be able to support tenants
 kubeadmConfigPatches:
 - |

@@ -7,6 +7,7 @@ import (
 
 	"log"
 	"k8s.io/client-go/tools/cache"
+	v1 "k8s.io/api/core/v1"
 
 )
 
@@ -62,3 +63,30 @@ func (c *Controller) handleDelete(obj interface{}) {
 	c.workqueue.Add(deleteObj)
 
 }
+
+
+func (c *Controller) handlePodAdd(obj interface{}) {
+
+	newPod := obj.(*v1.Pod)
+	log.Printf("Pod Added: %s, with namespace %s", newPod.Name, newPod.Namespace)
+
+
+
+}
+
+
+
+func (c *Controller) handlePodUpdate(newobj interface{}, oldObj interface{}) {
+
+
+}
+
+
+func (c *Controller) handlePodDelete(obj interface{}) {
+
+	oldObjPod := obj.(*v1.Pod)
+	log.Printf("Pod Deleted: %s with namespace: %s",oldObjPod.Name, oldObjPod.Namespace)
+
+
+}
+

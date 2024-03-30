@@ -9,6 +9,9 @@ import (
 	tenantController "github.com/jovik31/tenant/pkg/controller"
 	tenantRegistration "github.com/jovik31/tenant/pkg/crd"
 	kubecnf "github.com/jovik31/tenant/pkg/k8s"
+	"k8s.io/sample-controller/pkg/signals"
+	kubeinformers "k8s.io/client-go/informers"
+
 
 	"github.com/jovik31/tenant/pkg/network/ipam"
 )
@@ -19,6 +22,8 @@ var (
 
 func main() {
 
+
+	ctx :=signals.SetupSignalHandler()
 	//init kubernetes client for initial configurations
 	config, err := kubecnf.InitKubeConfig()
 	if err != nil {
@@ -82,14 +87,18 @@ func main() {
 	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
 	
 	//Start controller on a go routine
-	ch := make(chan struct{})
-	informersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
-	c := tenantController.NewController(tenantClient, informersFactory.Jovik31().V1alpha1().Tenants())
-	informersFactory.Start(ch)
+	//ch := make(chan struct{})
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeclientset, 10*time.Second)
+	tInformersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
+
+	c := tenantController.NewController(ctx,tenantClient, kubeclientset,
+		 tInformersFactory.Jovik31().V1alpha1().Tenants(), kubeInformerFactory.Core().V1().Pods())
+
+	tInformersFactory.Start(ctx.Done())
+	kubeInformerFactory.Start(ctx.Done())
 	
-	if err := c.Run(ch); err != nil {
+	if err := c.Run(ctx); err != nil {
 		log.Printf("Error running controller: %s\n", err.Error())
 	}
-	<-ch
 
 }
