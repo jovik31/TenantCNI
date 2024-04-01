@@ -123,13 +123,12 @@ func ensureVxlan(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 
 
 func InitVxlanDevice(podCidr string, vtepName string, vni int, vtepMac string) (*netlink.Vxlan, error) {
-	// 先创建vxlan设备
+	
 	vxlanLink, err := newVxlanDevice(vtepName, vni, vtepMac)
 	if err != nil {
 		return nil, errors.Wrap(err, "NewVXLANDevice error")
 	}
 
-	// podCidr格式：10.244.1.0/24
 	_, cidr, err := net.ParseCIDR(podCidr)
 	if err != nil {
 		return nil, errors.Wrap(err, "ParseCIDR error")
@@ -140,8 +139,7 @@ func InitVxlanDevice(podCidr string, vtepName string, vni int, vtepMac string) (
 		return nil, errors.Wrapf(err, "AddrList error")
 	}
 	if len(existingAddrs) == 0 {
-		// 给vxlan设备配置IP
-		// 确保vxlan设备掩码是32位，防止自动出来一条广播路由
+		
 		log.Printf("config vxlan device %s ip: %s", vxlanLink.Name, cidr.IP)
 		if err = netlink.AddrAdd(vxlanLink, &netlink.Addr{
 			IPNet: &net.IPNet{
@@ -153,7 +151,6 @@ func InitVxlanDevice(podCidr string, vtepName string, vni int, vtepMac string) (
 		}
 	}
 
-	// up vxlan设备
 	if err = netlink.LinkSetUp(vxlanLink); err != nil {
 		return nil, errors.Wrap(err, "LinkSetUp error")
 	}

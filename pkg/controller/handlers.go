@@ -1,15 +1,14 @@
 package controller
 
-
-
-
 import (
-
 	"log"
-	"k8s.io/client-go/tools/cache"
-	v1 "k8s.io/api/core/v1"
 
+	"github.com/jovik31/tenant/pkg/network/ipam"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
+
+const(podTenantAnnotationKey="jovik31.dev.tenants")
 
 func (c *Controller) handleAdd(obj interface{}) {
 
@@ -68,7 +67,29 @@ func (c *Controller) handleDelete(obj interface{}) {
 func (c *Controller) handlePodAdd(obj interface{}) {
 
 	newPod := obj.(*v1.Pod)
+	p, err :=ipam.NewPodStore()
+	if err!=nil{
+		log.Printf("Failed to get pod storage %v", err)
+	}
+	p.Lock()
+
+	p.LoadPodData()
+	pim, err:=ipam.NewPodIPAM(p)
+	if err!= nil{
+		log.Printf("Failed to generate pod ipam, %v", err)
+	}
+	pod_map := pim.PodStore.Data.Pods
+	tenantAnnotation := newPod.Annotations[podTenantAnnotationKey]
+	if tenantAnnotation ==""{
+		pod_map[newPod.Name]="defaulttenant"
+	} else {
+		pod_map[newPod.Name] = tenantAnnotation
+	}
+	p.StorePodData()
+	p.Unlock()
+
 	log.Printf("Pod Added: %s, with namespace %s", newPod.Name, newPod.Namespace)
+	
 
 
 

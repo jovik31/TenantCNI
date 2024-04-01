@@ -18,6 +18,7 @@ import (
 
 var (
 	defaultNodeDir = "/var/lib/cni/tenantcni"
+
 )
 
 func main() {
@@ -32,6 +33,9 @@ func main() {
 
 	//Register tenant CRD onto the kubernetes API using the rest Configuration
 	tenantRegistration.RegisterTenantCRD(config)
+
+	//Add ip forwarding to the node:
+	
 
 	kubeclientset, err := kubecnf.GetKubeClientSet()
 	if err != nil {
@@ -87,7 +91,6 @@ func main() {
 	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
 	
 	//Start controller on a go routine
-	//ch := make(chan struct{})
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeclientset, 10*time.Second)
 	tInformersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
 

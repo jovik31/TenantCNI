@@ -1,8 +1,8 @@
 package routing
 
 import (
-	//"github.com/pkg/errors"
-	//"os/exec"
+	"github.com/pkg/errors"
+	"os/exec"
 
 	//"github.com/coreos/go-iptables/iptables"
 )
@@ -10,12 +10,12 @@ import (
 
 
 
-//func addIpTablesDocker() error {
+//func AddIpTablesDocker() error {
 //	return nil
 //}
 
 
-//func addIpTablesTenants() error {
+//func AddIpTablesTenants() error {
 
 	//ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
 	//if err != nil {
@@ -26,10 +26,10 @@ import (
 //}
 
 //Enables ip fowarding on the host
-//func enableIPForwarding() error {
-//	cmd := exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1")
-//	if err := cmd.Run(); err != nil {
-//		return errors.Wrapf(err,"Failed to enable IP forwarding")
-//	}
-//	return nil
-//}
+func EnableIPForwarding() error {
+	cmd := exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1")
+	if err := cmd.Run(); err != nil {
+	return errors.Wrapf(err,"Failed to enable IP forwarding")
+}
+	return nil
+}

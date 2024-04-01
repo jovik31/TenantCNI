@@ -42,6 +42,14 @@ func NewTenantIPAM(store *TenantStore, tenantName string) (*TenantIPAM, error) {
 	return tim, nil
 }
 
+func NewPodIPAM(store *PodStore)(*PodIPAM , error){
+
+	pim := &PodIPAM{
+		PodStore: store,
+	}
+	return pim, nil
+}
+
 func ListSubnets(original string, newPrefix int) []string {
 
 	var subnetList []string
@@ -92,6 +100,18 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 	tenantStore.Data.Bridge = &Bridge{
 		Name:    "br-" + tenantName,
 		Gateway: tenantCIDR.Addr().Next(),
+	}
+	log.Printf("Bridge name: %s and IP: %s", tenantStore.Data.Bridge.Name, tenantStore.Data.Bridge.Gateway.String())
+
+	if len(tenantStore.Data.Bridge.Name) >= 13 {
+		log.Printf("Bridge name too long: %s", tenantStore.Data.Bridge.Name)
+		tenantStore.Data.Bridge.Name = "br-default"
+	}
+
+	//Create Bridge
+	_, err = backend.CreateTenantBridge(tenantStore.Data.Bridge.Name, 1450, tenantStore.Data.Bridge.Gateway)
+	if err != nil{
+		log.Printf("Failed creating %s bridge", err)
 	}
 
 	//Generate a new hardware address for the Vxlan device

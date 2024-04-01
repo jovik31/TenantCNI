@@ -2,7 +2,7 @@ package main
 
 import (
 	//"encoding/json"
-	"fmt"
+	"log"
 	"net"
 
 	"github.com/containernetworking/cni/pkg/skel"
@@ -33,7 +33,7 @@ func main() {
 
 func cmdAdd(args *skel.CmdArgs) error {
 
-	fmt.Printf("cmdAdd args: %v\n", args.Args)
+	log.Printf("cmdAdd args: %v\n", args.Args)
 	
 	//log.Debugf("cmdAdd details: containerID = %s, netNs = %s, ifName = %s, args = %s, path = %s, stdin = %s",
 	//	args.ContainerID,

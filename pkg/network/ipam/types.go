@@ -13,10 +13,16 @@ type NodeIPAM struct {
 	NodeStore *NodeStore
 }
 
+
 type TenantIPAM struct {
 	TenantName  string
 	TenantStore *TenantStore
 }
+
+type PodIPAM struct {
+	PodStore *PodStore
+}
+
 
 type NodeData struct {
 	NodeIP        string                  `json:"nodeIP"`
@@ -34,6 +40,10 @@ type TenantData struct {
 	Last string                      `json:"last"`
 }
 
+type PodData struct {
+	Pods map[string]string `json:"pods"`
+}
+
 type NodeStore struct {
 	*filemutex.FileMutex
 	Directory string
@@ -46,6 +56,14 @@ type TenantStore struct {
 	Directory string
 	Data      *TenantData
 	DataFile  string
+}
+
+type PodStore struct {
+
+	*filemutex.FileMutex
+	Directory 	string
+	Data 		*PodData
+	DataFile 	string
 }
 
 type Bridge struct {
