@@ -9,11 +9,11 @@ import (
 	tenantController "github.com/jovik31/tenant/pkg/controller"
 	tenantRegistration "github.com/jovik31/tenant/pkg/crd"
 	kubecnf "github.com/jovik31/tenant/pkg/k8s"
-	"k8s.io/sample-controller/pkg/signals"
 	kubeinformers "k8s.io/client-go/informers"
-
+	"k8s.io/sample-controller/pkg/signals"
 
 	"github.com/jovik31/tenant/pkg/network/ipam"
+	"github.com/jovik31/tenant/pkg/network/routing"
 )
 
 var (
@@ -90,6 +90,14 @@ func main() {
 	//Register default tenant in the k8s API
 	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
 	
+	//enable IPv4 forwarding, if not enabled
+	if err := routing.EnableIPForwarding(); err != nil {
+		log.Printf("Error enabling IP forwarding: %s", err.Error())
+	}
+
+	//enabable communication between all hosts within the pod CIDR
+	
+
 	//Start controller on a go routine
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeclientset, 10*time.Second)
 	tInformersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)

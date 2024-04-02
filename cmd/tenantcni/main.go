@@ -35,14 +35,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	log.Printf("cmdAdd args: %v\n", args.Args)
 	
-	//log.Debugf("cmdAdd details: containerID = %s, netNs = %s, ifName = %s, args = %s, path = %s, stdin = %s",
-	//	args.ContainerID,
-	//	args.Netns,
-	//	args.IfName,
-	//	args.Args,
-	//	args.Path,
-	//	string(args.StdinData),
-	//)
+	log.Printf("cmdAdd details: containerID = %s, netNs = %s, ifName = %s, args = %s, path = %s, stdin = %s",
+		args.ContainerID,
+		args.Netns,
+		args.IfName,
+		args.Args,
+		args.Path,
+		string(args.StdinData),
+	)
 	result := &current.Result{
 		CNIVersion:current.ImplementedSpecVersion,
 		IPs: []*current.IPConfig{
