@@ -1,14 +1,15 @@
 package ipam
 
 import (
-	"log"
-	"net/netip"
 	"fmt"
+	"log"
+	"net"
+	"net/netip"
+	"golang.org/x/exp/maps"
 
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
-
 
 func NewNodeIPAM(store *NodeStore, nodeName string) (*NodeIPAM, error) {
 
@@ -29,7 +30,7 @@ func NewTenantIPAM(store *TenantStore, tenantName string) (*TenantIPAM, error) {
 	return tim, nil
 }
 
-func NewPodIPAM(store *PodStore)(*PodIPAM , error){
+func NewPodIPAM(store *PodStore) (*PodIPAM, error) {
 
 	pim := &PodIPAM{
 		PodStore: store,
@@ -97,7 +98,7 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 
 	//Create Bridge
 	_, err = backend.CreateTenantBridge(tenantStore.Data.Bridge.Name, 1450, tenantStore.Data.Bridge.Gateway)
-	if err != nil{
+	if err != nil {
 		log.Printf("Failed creating %s bridge", err)
 	}
 
@@ -107,13 +108,13 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 		log.Println("Failed to generate a new hardware address")
 	}
 
-	sMac:= macAddress.String()
-	if err != nil{
+	sMac := macAddress.String()
+	if err != nil {
 
 		log.Println("Failed to convert hardware address to string")
 	}
 	//Store the Vxlan information on the tenant store
-	vtepName :=fmt.Sprintf("%s.%v", tenantName, tenantVNI)
+	vtepName := fmt.Sprintf("%s.%v", tenantName, tenantVNI)
 	log.Println(vtepName)
 	tenantStore.Data.Vxlan = &Vxlan{
 		VtepName: vtepName,
@@ -133,4 +134,25 @@ func GetTenantIP(tenantList []string) netip.Prefix {
 		log.Println("Error parsing tenant subnet: ", err)
 	}
 	return subnet
+}
+
+func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
+
+	tim.TenantStore.Lock()
+	defer tim.TenantStore.Unlock()
+
+	if err := tim.TenantStore.LoadTenantData(); err != nil {
+		log.Println("Failed to load tenant data")
+	}
+
+	tenantIPs := tim.TenantStore.Data.IPs
+	tenantGateway := tim.TenantStore.Data.Bridge.Gateway
+	firstIP := tenantGateway.Next()
+	ips := maps.Keys(tenantIPs)
+
+	if firstIP in ips {
+		log.Println("First IP already allocated")
+	}
+
+
 }

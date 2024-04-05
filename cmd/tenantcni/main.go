@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	plugin_name = "tenantcni"
-	logFile     = "/var/log/tenantcni.log"
+	plugin_name    = "tenantcni"
+	logFile        = "/var/log/tenantcni.log"
+	defaultNodeDir = "/var/lib/cni/tenantcni"
+
 	//defaultPodFile= "/var/lib/cni/tenantcni/podlist/podlist.json"
 )
 
@@ -45,7 +47,21 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Printf("Pod name %s, Tenant name: %s", pod_name, tenant)
 
 	//With tenant name get tenant store
+	tenantStore, err := ipam.NewTenantStore(defaultNodeDir, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant store: %s", err.Error())
+		return err
+	}
+	tenantStore.LoadTenantData()
+	tim, err := ipam.NewTenantIPAM(tenantStore, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant ipam: %s", err.Error())
+		return err
+	}
 	//get tenant bridge name and gateway
+	gateway := tim.TenantStore.Data.Bridge.Gateway
+	bridge := tim.TenantStore.Data.Bridge.Name
+	log.Printf("Bridge: %s, Gateway: %s", bridge, gateway)
 	//Allocate IP address from tenant
 	//setup veth pairs and add them to the tenant bridge
 	//Add default route to the namespace
