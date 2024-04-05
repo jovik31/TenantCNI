@@ -2,8 +2,10 @@ package main
 
 import (
 	//"encoding/json"
-	"log"
 	"net"
+	"regexp"
+	"os"
+	"log"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
@@ -13,8 +15,7 @@ import (
 	//"github.com/containernetworking/plugins/pkg/ns"
 	bv "github.com/containernetworking/plugins/pkg/utils/buildversion"
 	//"github.com/pkg/errors"
-	//"github.com/jovik31/tenant/pkg/log"
-	//"github.com/jovik31/tenant/pkg/k8s"
+	"github.com/jovik31/tenant/pkg/network/ipam"
 )
 
 
@@ -22,6 +23,7 @@ const(
 
 	plugin_name = "tenantcni"
 	logFile = "/var/log/tenantcni.log"
+	//defaultPodFile= "/var/lib/cni/tenantcni/podlist/podlist.json"
 )
 
 func main() {
@@ -33,16 +35,35 @@ func main() {
 
 func cmdAdd(args *skel.CmdArgs) error {
 
+	file, err := openLogFile(logFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetOutput(file)
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+
 	log.Printf("cmdAdd args: %v\n", args.Args)
 	
-	log.Printf("cmdAdd details: containerID = %s, netNs = %s, ifName = %s, args = %s, path = %s, stdin = %s",
-		args.ContainerID,
-		args.Netns,
-		args.IfName,
-		args.Args,
-		args.Path,
-		string(args.StdinData),
-	)
+	pod_name := get_regex(args.Args)
+	log.Printf("Pod name: %s", pod_name)
+
+	podStore, err :=ipam.NewPodStore()
+	if err != nil {
+		log.Printf("Error creating pod store: %s", err.Error())
+		return err
+	}
+
+	podStore.LoadPodData()
+	pim, err := ipam.NewPodIPAM(podStore)
+	if err != nil {
+		log.Printf("Error creating pod ipam: %s", err.Error())
+		return err
+	}
+	podData:=pim.PodStore.Data
+	podList:= podData.Pods
+	log.Printf("Pod list: %v", podList)
+
+
 	result := &current.Result{
 		CNIVersion:current.ImplementedSpecVersion,
 		IPs: []*current.IPConfig{
@@ -65,4 +86,21 @@ func cmdDel(args *skel.CmdArgs) error {
 func cmdCheck(args *skel.CmdArgs) error {
 	
 	return nil
+}
+
+func openLogFile(path string) (*os.File, error) {
+    logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+    if err != nil {
+        return nil, err
+    }
+    return logFile, nil
+}
+
+
+func get_regex(arg string) string {
+
+	var re = regexp.MustCompile(`(-?)K8S_POD_NAME=(.+?);`)
+	mf:= re.FindStringSubmatch(arg)
+	return mf[2]
+
 }

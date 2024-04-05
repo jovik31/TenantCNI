@@ -147,4 +147,3 @@ func StoreTenantAnnotationNode(clientset *kubernetes.Clientset, node *v1.Node, t
 	return nil
 }
 
-func StoreTenantInfoCR() {}

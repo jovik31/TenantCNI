@@ -9,19 +9,6 @@ import (
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
-//"errors"
-//"fmt"
-//"net"
-
-// Allocate a subnet to a tenant, populate its fields if needed
-//func AllocateTenant()
-
-//func AllocateIP()
-//func NewTenantIPAM() (*TenantIPAM, error) {
-//	//Create a new tenant IPAM struct
-//	//Return the struct and an error if any
-//
-//}
 
 func NewNodeIPAM(store *NodeStore, nodeName string) (*NodeIPAM, error) {
 
