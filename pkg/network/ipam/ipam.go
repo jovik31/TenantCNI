@@ -104,12 +104,6 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 		tenantStore.Data.Bridge.Name = "br-default"
 	}
 
-	//Create Bridge
-	_, err = backend.CreateTenantBridge(tenantStore.Data.Bridge.Name, 1450, tenantStore.Data.Bridge.Gateway)
-	if err != nil {
-		log.Printf("Failed creating %s bridge", err)
-	}
-
 	//Generate a new hardware address for the Vxlan device
 	macAddress, err := backend.NewHardwareAddr()
 	if err != nil {

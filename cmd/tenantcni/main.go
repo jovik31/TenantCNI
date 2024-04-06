@@ -97,6 +97,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	gtw := net.ParseIP(gatewayString)
 
 	if err := backend.SetupVeth(netns, br, mtu, args.IfName, tim.IPNet(ip), gtw); err != nil {
+		log.Printf("Error setting up veth: %s", err.Error())
 		return err
 	}
 
