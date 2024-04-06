@@ -1,11 +1,12 @@
 package main
 
 import (
-	//"encoding/json"
+	"encoding/json"
 	"log"
 	"net"
 	"os"
 	"regexp"
+	"github.com/containernetworking/plugins/pkg/ns"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
@@ -15,6 +16,7 @@ import (
 	//"github.com/containernetworking/plugins/pkg/ns"
 	bv "github.com/containernetworking/plugins/pkg/utils/buildversion"
 	//"github.com/pkg/errors"
+	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 )
 
@@ -44,6 +46,10 @@ func cmdAdd(args *skel.CmdArgs) error {
 		log.Printf("Error getting tenant name: %s", err.Error())
 		return err
 	}
+	if tenant == "" {
+		log.Printf("Tenant name not found")
+		return err
+	}
 	log.Printf("Pod name %s, Tenant name: %s", pod_name, tenant)
 
 	//With tenant name get tenant store
@@ -62,19 +68,52 @@ func cmdAdd(args *skel.CmdArgs) error {
 	gateway := tim.TenantStore.Data.Bridge.Gateway
 	bridge := tim.TenantStore.Data.Bridge.Name
 	log.Printf("Bridge: %s, Gateway: %s", bridge, gateway)
-	//Allocate IP address from tenant
-	//setup veth pairs and add them to the tenant bridge
-	//Add default route to the namespace
+
+
+	//Allocate IP address from the specific tenant to the next Pod
+	ip, err := tim.AllocateIP(args.ContainerID, args.IfName)
+	if err != nil {
+		log.Printf("Error allocating IP address: %s", err.Error())
+		return err
+	}
+	log.Printf("Allocated IP: %s", ip.String())
+	//Check if bridge exists, if not create:
+	mtu := 1500
+	br, err := backend.CreateTenantBridge(bridge, mtu, gateway)
+	if err != nil {
+		log.Printf("Error creating bridge: %s", err.Error())
+		return err
+	}
+	log.Printf("Bridge created: %s", br.Attrs().Name)
+
+	//Get namespace
+	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+		return err
+	}
+	defer netns.Close()
+
+	gatewayString := gateway.String()
+	gtw := net.ParseIP(gatewayString)
+
+	if err := backend.SetupVeth(netns, br, mtu, args.IfName, tim.IPNet(ip), gtw); err != nil {
+		return err
+	}
+
 	result := &current.Result{
-		CNIVersion: current.ImplementedSpecVersion,
+		CNIVersion: "0.3.1",
 		IPs: []*current.IPConfig{
 			{
-				Address: net.IPNet{IP: net.ParseIP("10.10.10.2"), Mask: net.CIDRMask(24, 32)},
-				Gateway: net.ParseIP("10.10.10.1"),
+				Address: net.IPNet{IP: ip, Mask: net.CIDRMask(24, 32)},
+				Gateway: net.ParseIP(gateway.String()),
 			},
 		},
 	}
-
+	resultBytes, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	log.Printf("Result: %s", resultBytes)
 	return types.PrintResult(result, result.CNIVersion)
 }
 

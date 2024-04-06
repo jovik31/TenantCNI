@@ -56,16 +56,7 @@ func CreateTenantBridge(bridgeName string, mtu int, gateway netip.Addr) (netlink
 func SetupVeth(netns ns.NetNS, br netlink.Link, mtu int, ifName string, podIP *net.IPNet, gateway net.IP) error {
 	hostIface := &current.Interface{}
 	err := netns.Do(func(hostNS ns.NetNS) error {
-		// setup lo, kubernetes will call loopback internal
-		// loLink, err := netlink.LinkByName("lo")
-		// if err != nil {
-		// 	return err
-		// }
-
-		// if err := netlink.LinkSetUp(loLink); err != nil {
-		// 	return err
-		// }
-
+		
 		// create the veth pair in the container and move host end into host netns
 		hostVeth, containerVeth, err := ip.SetupVeth(ifName, mtu, "", hostNS)
 		if err != nil {

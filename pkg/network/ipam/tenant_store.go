@@ -3,6 +3,7 @@ package ipam
 import (
 	"encoding/json"
 	"log"
+	"net"
 	//"net/netip"
 	"os"
 	"path/filepath"
@@ -100,3 +101,44 @@ func(s *TenantStore) LoadTenantData() error {
 	return nil
 }
 
+
+func(t *TenantStore) GetIPByID(id string) (net.IP, bool) {
+	
+	for ip, info := range t.Data.IPs {
+		if info.ID == id {
+			return net.ParseIP(ip), true
+		}
+	}
+	return nil ,false
+}
+
+func (t *TenantStore) Add(ip net.IP, id string, ifname string) error{
+
+	if len(ip) >0 {
+		t.Data.IPs[ip.String()] = ContainerNetInfo{
+			ID: id,
+			IFname: ifname,
+		}
+			return t.StoreTenantData()
+	}
+	return nil
+}
+
+func (t *TenantStore) Remove(ip net.IP) error {
+	if len(ip) > 0 {
+		delete(t.Data.IPs, ip.String())
+		return t.StoreTenantData()
+	}
+	return nil
+}
+
+func (t *TenantStore) Contains(ip net.IP) bool{
+
+	_, ok := t.Data.IPs[ip.String()]
+	return ok
+
+}
+
+func (t *TenantStore) Last() net.IP {
+	return net.ParseIP(t.Data.Last)
+}
