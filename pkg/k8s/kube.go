@@ -147,3 +147,13 @@ func StoreTenantAnnotationNode(clientset *kubernetes.Clientset, node *v1.Node, t
 	return nil
 }
 
+func GetConfigMap(clientset *kubernetes.Clientset, namespace, name string) (*v1.ConfigMap, error) {
+
+	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Failed to retrieve config map %s in namespace %s: %s", name, namespace, err.Error())
+		return nil, err
+	}
+	return configMap, nil
+}
+

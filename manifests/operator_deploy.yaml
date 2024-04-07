@@ -38,6 +38,7 @@ rules:
   - nodes
   - namespaces
   - pods
+  - configmaps
   verbs:
   - list
   - watch
@@ -73,6 +74,13 @@ data:
       "cniVersion": "0.4.0",
       "name": "tenantcni",
       "type": "tenantcni"
+    }
+  net-conf.json: |
+    {
+      "PodCIDR": "10.244.0.0/16",
+      "Backend": {
+        "Type": "vxlan"
+      }
     }
 ---
 apiVersion: apps/v1

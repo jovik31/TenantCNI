@@ -40,4 +40,11 @@ type TenantList struct{
 }
 
 
+type ConfMap struct {
+
+
+	PodCIDR string `json:"PodCIDR"`
+	Backend map[string]string `json:"Backend"`
+}
+
 

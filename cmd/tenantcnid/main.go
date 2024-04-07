@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -12,12 +13,15 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/sample-controller/pkg/signals"
 
+	confType "github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
+
 	"github.com/jovik31/tenant/pkg/network/ipam"
 	"github.com/jovik31/tenant/pkg/network/routing"
 )
 
 var (
 	defaultNodeDir = "/var/lib/cni/tenantcni"
+	confMap = "tenantcni-config"
 
 )
 
@@ -33,9 +37,6 @@ func main() {
 
 	//Register tenant CRD onto the kubernetes API using the rest Configuration
 	tenantRegistration.RegisterTenantCRD(config)
-
-	//Add ip forwarding to the node:
-	
 
 	kubeclientset, err := kubecnf.GetKubeClientSet()
 	if err != nil {
@@ -90,12 +91,32 @@ func main() {
 	//Register default tenant in the k8s API
 	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
 	
+	//Get info from config map on the cluster PodCIDR for iptables.
+	netConf, err := kubecnf.GetConfigMap(kubeclientset, "default", confMap)
+	if err !=nil{
+		log.Printf("Error retrieving config from map %s", err)
+	}
+
+	//Get the PodCIDR from the config map 
+	configMap := &confType.ConfMap{}
+	confString := netConf.Data["net-conf.json"]
+	err =json.Unmarshal([]byte(confString), &configMap)
+	if err != nil {
+		log.Printf("Error unmarshalling config map: %s", err.Error())
+	}
+	log.Printf("PodCIDR: %s", configMap.PodCIDR)
+	
+	//enabable communication between all hosts within the pod CIDR
+
+
+
 	//enable IPv4 forwarding, if not enabled
 	if err := routing.EnableIPForwarding(); err != nil {
 		log.Printf("Error enabling IP forwarding: %s", err.Error())
 	}
 
-	//enabable communication between all hosts within the pod CIDR
+
+	
 	
 
 	//Start controller on a go routine
