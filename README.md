@@ -17,4 +17,4 @@ To DO:
       
 TenantCNI deployment:
 
-kubectl apply -f https://raw.githubusercontent.com/jovik31/tenantCNI/manifests/operator_deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/jovik31/TenantCNI/main/manifests/operator_deploy.yaml
