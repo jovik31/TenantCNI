@@ -129,7 +129,7 @@ spec:
         - name: cni-plugin
           mountPath: /opt/cni/bin
       - name: install-cni
-        image: jovik31/tenantcni:0.2.0
+        image: jovik31/tenantcni:latest
         command: 
         - cp
         args:
@@ -142,7 +142,7 @@ spec:
         - name: tenantcni
           mountPath: /etc/tenantcni/
       containers:
-      - image: jovik31/tenantcni:0.2.0
+      - image: jovik31/tenantcni:latest
         name: tenantcnid
         command:
         - /tenantcnid
