@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"regexp"
+	"context"
+	"errors"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/cni/pkg/skel"
@@ -16,6 +18,8 @@ import (
 	llog "github.com/jovik31/tenant/pkg/log"
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
+
+	retry"github.com/jdvr/go-again"
 )
 
 const (
@@ -26,26 +30,41 @@ const (
 
 func main() {
 	skel.PluginMain(cmdAdd, cmdCheck, cmdDel, version.All, bv.BuildString(plugin_name))
-	//log.InitLogger(logFile)
-	//log.Debugf("tenantcni plugin started")
+
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
 
+	//Context for retry tenant loading
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	file := llog.LoadLogFile()
 	defer file.Close()
-
 	pod_name := get_regex(args.Args)
 
-	tenant, err := getTenantPod(pod_name)
+	
+	//Fetches tenant name from the pod name, retries if failed
+	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+
+		tenantName, err := getTenantPod(pod_name)
+		if err != nil {
+			log.Printf("Error getting tenant name: %s", err.Error())
+			return "", err
+		}
+		if tenantName == "" {
+			log.Printf("Tenant name not found, retrying")
+			return "", errors.New("tenant name not found")
+			}
+
+		return tenantName, nil
+		})
+		
 	if err != nil {
 		log.Printf("Error getting tenant name: %s", err.Error())
 		return err
 	}
-	if tenant == "" {
-		log.Printf("Tenant name not found")
-		return err
-	}
+	//Debug
 	log.Printf("Pod name %s, Tenant name: %s", pod_name, tenant)
 
 	//With tenant name get tenant store
@@ -77,7 +96,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	mtu := 1500
 	br, err := backend.CreateTenantBridge(bridge, mtu, gateway)
 	if err != nil {
-		log.Printf("Error creating bridge: %s", err.Error())
+		log.Print("Error creating bridge",err.Error())
 		return err
 	}
 	log.Printf("Bridge created: %s", br.Attrs().Name)
@@ -132,7 +151,7 @@ func cmdCheck(args *skel.CmdArgs) error {
 //Check errors with regex
 func get_regex(arg string) string {
 
-	var re = regexp.MustCompile(`(-?)K8S_POD_NAME=(.+?);`)
+	var re = regexp.MustCompile(`(-?)K8S_POD_NAME=(.+?)(;|$)`)
 	mf := re.FindStringSubmatch(arg)
 	return mf[2]
 
@@ -140,7 +159,6 @@ func get_regex(arg string) string {
 
 func getTenantPod(podname string) (string, error) {
 
-	var tenantName string
 	podStore, err := ipam.NewPodStore()
 	if err != nil {
 		log.Printf("Error creating pod store: %s", err.Error())
@@ -157,12 +175,9 @@ func getTenantPod(podname string) (string, error) {
 	podList := podData.Pods
 
 	for name, tenant := range podList {
-		if name == podname {
-			tenantName = tenant
+		if name == podname && tenant != ""{
+			return tenant, nil
 		}
 	}
-	if tenantName == "" {
-		return "", err
-	}
-	return tenantName, nil
+	return "", nil
 }

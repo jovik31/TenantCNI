@@ -27,8 +27,9 @@ var (
 
 func main() {
 
-
+	log.Println("Starting tenant operator")
 	ctx :=signals.SetupSignalHandler()
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	//init kubernetes client for initial configurations
 	config, err := kubecnf.InitKubeConfig()
 	if err != nil {

@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tenant-service-account
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: tenant-cluster-role
+rules:
+- apiGroups:
+  - jovik31.dev
+  resources:
+  - tenants
+  verbs:
+  - list
+  - watch
+  - create
+  - get
+  - patch
+  - update
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - list
+  - watch
+  - create
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - namespaces
+  - pods
+  - configmaps
+  - events
+  verbs:
+  - create
+  - list
+  - watch
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: tenant-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: tenant-service-account
+  namespace: default
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: tenantcni-config
+  namespace: default
+  labels:
+    tier: node
+    app: tenantcni
+data:
+  cni-conf.json: |
+   {
+      "cniVersion": "0.4.0",
+      "name": "tenantcni",
+      "type": "tenantcni"
+    }
+  net-conf.json: |
+    {
+      "PodCIDR": "10.244.0.0/16",
+      "Backend": {
+        "Type": "vxlan"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  creationTimestamp: null
+  labels:
+    tier: node
+    app: tenantcni
+  name: tenantcni-operator
+spec:
+  selector:
+    matchLabels:
+      app: tenantcni
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: tenantcni
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      serviceAccountName: tenant-service-account
+      initContainers:
+      - name: install-cni-plugin
+        image: jovik31/tenantcni:0.2.0
+        command: 
+        - cp
+        args:
+        - -f
+        - /tenantcni
+        - /opt/cni/bin/tenantcni
+        volumeMounts:
+        - name: cni-plugin
+          mountPath: /opt/cni/bin
+      - name: install-cni
+        image: jovik31/tenantcni:0.2.0
+        command: 
+        - cp
+        args:
+        - -f
+        - /etc/tenantcni/cni-conf.json
+        - /etc/cni/net.d/10-tenantcni.conf
+        volumeMounts:
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: tenantcni
+          mountPath: /etc/tenantcni/
+      containers:
+      - image: jovik31/tenantcni:0.2.0
+        name: tenantcnid
+        command:
+        - /tenantcnid
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace 
+        - name: MY_NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        securityContext:
+          privileged: false
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
+        volumeMounts:
+        - name: var-lib-cni-tenantcni
+          mountPath: /var/lib/cni/tenantcni
+        - name: tenantcni-cfg
+          mountPath: /etc/tenantcni/
+      volumes:
+        - name: var-lib-cni-tenantcni
+          hostPath:
+            path: /var/lib/cni/tenantcni
+        - name: cni-plugin
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni
+          hostPath:
+            path: /etc/cni/net.d
+        - name: tenantcni
+          configMap:
+            name: tenantcni-config
+        - name: tenantcni-cfg
+          configMap:
+            name: tenantcni-config

@@ -73,7 +73,6 @@ func (c *Controller) handlePodAdd(obj interface{}) {
 		log.Printf("Failed to get pod storage %v", err)
 	}
 	p.Lock()
-
 	p.LoadPodData()
 	pim, err := ipam.NewPodIPAM(p)
 	if err != nil {
@@ -81,16 +80,22 @@ func (c *Controller) handlePodAdd(obj interface{}) {
 	}
 	pod_map := pim.PodStore.Data.Pods
 	tenantAnnotation := newPod.Annotations[podTenantAnnotationKey]
-	if tenantAnnotation == "" {
-		pod_map[newPod.Name] = "defaulttenant"
-	} else {
-		pod_map[newPod.Name] = tenantAnnotation
-	}
+	if newPod.Spec.HostNetwork {
+		log.Printf("Pod %s is using host network", newPod.Name)
+		p.Unlock()
+		return
+	}else{
+		if tenantAnnotation == "" {
+			pod_map[newPod.Name] = "defaulttenant"
+			
+
+		}else {
+			pod_map[newPod.Name] = tenantAnnotation
+		}
 	p.StorePodData()
 	p.Unlock()
-
 	log.Printf("Pod Added: %s, with namespace %s", newPod.Name, newPod.Namespace)
-
+	}
 }
 
 func (c *Controller) handlePodUpdate(newobj interface{}, oldObj interface{}) {
