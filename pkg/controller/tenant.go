@@ -295,6 +295,27 @@ func (c *Controller) addTenant(key string) error {
 			log.Println("Failed to update Node resource on API")
 			return err
 		}
+
+		//Allow tenant traffic forwarding
+		if err := routing.AllowForwardingTenant(tim.TenantStore.Data.TenantCIDR); err!=nil{
+			log.Println("Failed to allow tenant traffic forwarding")
+		}
+
+		//Block traffic between tenants on the same node
+		//1st: Get all tenants present in the node using the nodeStore
+		tenantList := nim.NodeStore.Data.TenantList
+
+		for tenant, tenantCIDR := range tenantList {
+			if tenant != tim.TenantName && tenant != "defaulttenant" {
+				stenantCIDR :=tenantCIDR.String()
+				routing.BlockTenant2TenantTraffic(tim.TenantStore.Data.TenantCIDR, stenantCIDR)
+				log.Printf("Blocked traffic between tenants: %s and %s", tim.TenantName, tenant)
+
+			}else{
+				continue
+			}
+		}
+		
 		return nil
 	}
 

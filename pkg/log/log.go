@@ -1,35 +1,31 @@
 package log
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"sync"
 )
 
 var (
-	logger         *log.Logger
-	initOnce       sync.Once
-	DefaultLogFile = "tenantcni.log"
+	logFile= "/var/log/tenantcni.log"
 )
 
-// InitLogger initializes the logger configuration
-func InitLogger(logFile string) {
-	initOnce.Do(func() {
-		if logFile == "" {
-			logFile = DefaultLogFile // default log file path
-			fmt.Println("logFile is empty, using default path:", logFile)
-		}
 
-		file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(err)
-		}
+func LoadLogFile() *os.File {
 
-		logger = log.New(file, "", log.LstdFlags)
-	})
+	file, err := openLogFile(logFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetOutput(file)
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+
+	return file
 }
 
-func Debugf(template string, args ...interface{}) {
-	logger.Printf(template, args...)
+func openLogFile(path string) (*os.File, error) {
+	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return logFile, nil
 }

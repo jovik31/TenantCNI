@@ -109,6 +109,13 @@ func main() {
 	//enabable communication between all hosts within the pod CIDR
 
 
+	//Enable post routing for the pod CIDR
+	if err := routing.AllowPostRouting(nodeCIDR); err != nil {
+		log.Printf("Error enabling post routing: %s", err.Error())
+	}
+	
+
+
 
 	//enable IPv4 forwarding, if not enabled
 	if err := routing.EnableIPForwarding(); err != nil {

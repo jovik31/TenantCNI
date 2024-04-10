@@ -4,28 +4,24 @@ import (
 	"encoding/json"
 	"log"
 	"net"
-	"os"
 	"regexp"
-	"github.com/containernetworking/plugins/pkg/ns"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
-
-	//"github.com/containernetworking/plugins/pkg/ns"
 	bv "github.com/containernetworking/plugins/pkg/utils/buildversion"
-	//"github.com/pkg/errors"
+	
+	llog "github.com/jovik31/tenant/pkg/log"
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 )
 
 const (
 	plugin_name    = "tenantcni"
-	logFile        = "/var/log/tenantcni.log"
 	defaultNodeDir = "/var/lib/cni/tenantcni"
 
-	//defaultPodFile= "/var/lib/cni/tenantcni/podlist/podlist.json"
 )
 
 func main() {
@@ -36,7 +32,7 @@ func main() {
 
 func cmdAdd(args *skel.CmdArgs) error {
 
-	file := loadLogFile()
+	file := llog.LoadLogFile()
 	defer file.Close()
 
 	pod_name := get_regex(args.Args)
@@ -120,34 +116,20 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 func cmdDel(args *skel.CmdArgs) error {
 
+	file := llog.LoadLogFile()
+	defer file.Close()
+
 	return nil
 }
 
 func cmdCheck(args *skel.CmdArgs) error {
 
+	file := llog.LoadLogFile()
+	defer file.Close()
 	return nil
 }
 
-func loadLogFile() *os.File {
-
-	file, err := openLogFile(logFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.SetOutput(file)
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-
-	return file
-}
-
-func openLogFile(path string) (*os.File, error) {
-	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
-	}
-	return logFile, nil
-}
-
+//Check errors with regex
 func get_regex(arg string) string {
 
 	var re = regexp.MustCompile(`(-?)K8S_POD_NAME=(.+?);`)

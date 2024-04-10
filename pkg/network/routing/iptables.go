@@ -1,30 +1,13 @@
 package routing
 
 import (
-	"github.com/pkg/errors"
+	"log"
+
 	"os/exec"
+
 	"github.com/coreos/go-iptables/iptables"
-
-	//"github.com/coreos/go-iptables/iptables"
+	"github.com/pkg/errors"
 )
-
-
-
-
-//func AddIpTablesDocker() error {
-//	return nil
-//}
-
-
-//func AddIpTablesTenants() error {
-
-	//ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
-	//if err != nil {
-	//	return errors.Wrapf(err,"Failed to create iptables")
-	//}
-	//err = ipt.Append("nat", "POSTROUTING", "-s", ")
-	//return nil
-//}
 
 //Enables ip fowarding on the host
 func EnableIPForwarding() error {
@@ -35,42 +18,73 @@ func EnableIPForwarding() error {
 	return nil
 }
 
-func AddIptablesBridge(bridgeName, hostDeviceName, nodeCIDR string) error {
+func AllowBridgeForward(bridgeInterface string) error{
+
 	ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
 	if err != nil {
+		log.Printf("Error creating iptables: %s", err.Error())
 		return err
 	}
-
-	if err := ipt.AppendUnique("filter", "FORWARD", "-i", bridgeName, "-j", "ACCEPT"); err != nil {
+	//Add rule to allow forwarding from bridge to host
+	if err := ipt.AppendUnique("filter", "FORWARD", "-i", bridgeInterface, "-j", "ACCEPT"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
 		return err
 	}
 	return nil
 }
 
-func AddIptablesHost(hostDeviceName, nodeCIDR string, clusterCIDR string) error {
+func AllowPostRouting(nodeCIDR string) error{	
+
 	ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
 	if err != nil {
+		log.Printf("Error creating iptables: %s", err.Error())
 		return err
 	}
-	if err := ipt.AppendUnique("filter", "FORWARD", "-i", hostDeviceName, "-j", "ACCEPT"); err != nil {
+	//Add rule to allow source nat to access external networks
+	if err := ipt.AppendUnique("nat", "POSTROUTING", "-s", nodeCIDR, "-j", "MASQUERADE"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
 		return err
 	}
-	if err := ipt.AppendUnique("nat", "POSTROUTING", "-s", clusterCIDR, "-d", clusterCIDR,"-j", "MASQUERADE"); err != nil {
-		return err
-	}
+	return nil
+}
 
+func AllowForwardingTenant(TenantCIDR string) error {
+
+	ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
+	if err != nil {
+		log.Printf("Error creating iptables: %s", err.Error())
+		return err
+	}
+	//Add rule to allow forwarding from tenant
+	if err := ipt.AppendUnique("filter", "FORWARD", "-s", TenantCIDR, "-j", "ACCEPT"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
+		return err
+	}
+	//Add rule to allow forwarding to tenant
+	if err := ipt.AppendUnique("filter", "FORWARD", "-d", TenantCIDR, "-j", "ACCEPT"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
+		return err
+	}
 	return nil
 }
-//Check if this "iptables -P FORWARD ACCEPT" is needed
 
-func IsolateTenant(tenant1CIDR string, tenant2CIDR string) error {
+func BlockTenant2TenantTraffic(tenant1CIDR string, tenant2CIDR string) error {
+
 	ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
 	if err != nil {
+		log.Printf("Error creating iptables: %s", err.Error())
 		return err
 	}
-	//Check if FORWARD is the correct chain to add this rule
-	if err := ipt.AppendUnique("filter", "FORWARD", "-s", tenant1CIDR,"-d", tenant2CIDR, "-j", "DROP"); err != nil {
+	//Add rule to block traffic between tenants
+	if err := ipt.InsertUnique("filter", "FORWARD",1, "-s", tenant1CIDR, "-d", tenant2CIDR, "-j", "DROP"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
 		return err
 	}
+	if err := ipt.InsertUnique("filter", "FORWARD",1, "-s", tenant2CIDR, "-d", tenant1CIDR, "-j", "DROP"); err != nil {
+		log.Printf("Error adding iptables rule: %s", err.Error())
+		return err
+	}
+
 	return nil
+
 }
