@@ -118,7 +118,7 @@ spec:
       serviceAccountName: tenant-service-account
       initContainers:
       - name: install-cni-plugin
-        image: jovik31/tenantcni:0.2.0
+        image: jovik31/tenantcni:latest
         command: 
         - cp
         args:
