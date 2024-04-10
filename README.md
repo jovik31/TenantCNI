@@ -15,3 +15,6 @@ To DO:
         Isolate traffic between tenants within the same node. Except comms to the default tenant
     
       
+TenantCNI deployment:
+
+kubectl apply -f https://raw.githubusercontent.com/jovik31/tenantCNI/manifests/operator_deploy.yaml
