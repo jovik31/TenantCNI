@@ -59,11 +59,8 @@ func newVxlanDevice(vtepName string, vni int, vtepMac string) (*netlink.Vxlan, e
 	if err != nil {
 		return nil, errors.Wrap(err, "ParseMAC error")
 	}
-	//hardwareAddr, err := NewHardwareAddr()
-	if err != nil {
-		return nil, errors.Wrap(err, "newHardwareAddr error")
-	}
-
+	
+	
 	gateway, err := getDefaultGatewayInterface()
 	if err != nil {
 		return nil, errors.Wrap(err, "getDefaultGatewayInterface error")

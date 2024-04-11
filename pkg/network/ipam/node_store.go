@@ -55,21 +55,15 @@ func (s *NodeStore) AddAvailableTenantList(availList []string) error {
 }
 
 func (s *NodeStore) AddNodeCIDR(nodeCIDR string) error {
-	var err error
+	
 	s.Data.NodeCIDR = nodeCIDR
-	if err != nil {
-		return err
-	}
 	return s.StoreNodeData()
 }
 
 func (s *NodeStore) AddNodeIP(nodeIP string) error {
 
-	var err error
 	s.Data.NodeIP = nodeIP
-	if err != nil {
-		return err
-	}
+	
 	return s.StoreNodeData()
 }
 
