@@ -3,7 +3,7 @@ package controller
 import (
 	"log"
 	"github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
-	tenantType "github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
+	
 )
 
 
@@ -16,7 +16,7 @@ type EventObject struct {
 }
 
 
-func existsNode(nodeList []tenantType.Node, currentNodeName string) bool {
+func existsNode(nodeList []v1alpha1.Node, currentNodeName string) bool {
 
 	for _, element := range nodeList {
 		if currentNodeName == element.Name {
