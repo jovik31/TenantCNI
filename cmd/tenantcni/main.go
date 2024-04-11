@@ -306,7 +306,7 @@ func deletePod(podname string) error {
 	podData := pim.PodStore.Data
 	podList := podData.Pods
 
-	for name, _ := range podList {
+	for name := range podList {
 		if name == podname {
 			delete(podList, name)
 		}

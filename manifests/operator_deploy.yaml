@@ -39,7 +39,9 @@ rules:
   - namespaces
   - pods
   - configmaps
+  - events
   verbs:
+  - create
   - list
   - watch
   - get

@@ -3,11 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"reflect"
 	"time"
-	"log"
-	
 
 	"github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
 	tenantClientset "github.com/jovik31/tenant/pkg/client/clientset/versioned"
@@ -21,17 +20,18 @@ import (
 
 	"github.com/vishvananda/netlink"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	corev1 "k8s.io/api/core/v1"
 
 	podInformers "k8s.io/client-go/informers/core/v1"
 	podLister "k8s.io/client-go/listers/core/v1"
@@ -478,8 +478,50 @@ func (c *Controller) updateTenant(obj *EventObject) error {
 func (c *Controller) deleteTenant(obj *EventObject) error {
 
 	//Logic for tenant deletion
+	//Check if node is part of the tenant
+	//If it is, delete tenant file, remove vxlam devices and remove node annotation
+	deletedTenant := obj.oldObj.(*v1alpha1.Tenant)
+
+	namespace, name, err := cache.SplitMetaNamespaceKey(obj.key)
+	if err != nil {
+		log.Printf("Failed with error: %s  in splitting name and namespace from workqueue key", err.Error())
+		return err
+	}
+
+	//Get the newest tenant version
+	tenant, err := c.refreshTenant(namespace, name)
+	if err!= nil{
+		if errors.IsNotFound(err) {
+			log.Printf("Tenant not found: %s, deleted from K8s API ", deletedTenant.Name)
+		}else {
+			log.Printf("Failed with error: %s,", err.Error())
+			return err
+		}
+	}
+	k8sClient, err := k8s.GetKubeClientSet()
+	if err != nil {
+		log.Print("Error getting kube client set: ", err.Error())
+		return err
+	}
+	currentNodeName, err:= k8s.GetCurrentNodeName(k8sClient)
+	if err != nil {
+		log.Print("Error getting current node name: ", err.Error())
+		return err
+	}
+
+	if(existsNode(deletedTenant.Spec.Nodes, currentNodeName)){
+
+		//Get tenant store
+		//Delete tenant vxlan, delete tenant bridge and delete tenantfile
+		
+		return nil
+
+
+	}
 	
-	log.Print(obj)
+
+
+	log.Print(tenant)
 	return nil
 
 }

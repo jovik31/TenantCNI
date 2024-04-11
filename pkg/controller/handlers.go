@@ -56,8 +56,8 @@ func (c *Controller) handleDelete(obj interface{}) {
 
 	deleteObj := &EventObject{
 		eventType: "Delete",
-		newObj:    obj,
-		oldObj:    nil,
+		newObj:    nil,
+		oldObj:    obj,
 		key:       key,
 	}
 
