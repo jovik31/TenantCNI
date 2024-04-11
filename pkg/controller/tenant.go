@@ -476,6 +476,9 @@ func (c *Controller) updateTenant(obj *EventObject) error {
 }
 
 func (c *Controller) deleteTenant(obj *EventObject) error {
+
+	//Logic for tenant deletion
+	
 	log.Print(obj)
 	return nil
 

@@ -107,25 +107,16 @@ func main() {
 	}
 	log.Printf("PodCIDR: %s", configMap.PodCIDR)
 	
-	//enabable communication between all hosts within the pod CIDR
-
-
-	//Enable post routing for the pod CIDR
+	
+	//Enable post routing for the node CIDR
 	if err := routing.AllowPostRouting(nodeCIDR); err != nil {
 		log.Printf("Error enabling post routing: %s", err.Error())
 	}
 	
-
-
-
 	//enable IPv4 forwarding, if not enabled
 	if err := routing.EnableIPForwarding(); err != nil {
 		log.Printf("Error enabling IP forwarding: %s", err.Error())
 	}
-
-
-	
-	
 
 	//Start controller on a go routine
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeclientset, 10*time.Second)

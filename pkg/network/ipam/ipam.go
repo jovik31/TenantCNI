@@ -186,7 +186,31 @@ func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
 	return nil, fmt.Errorf("no more available IPs")
 	
 }
+func (tim *TenantIPAM) ReleaseIP(id string) error {
+	tim.TenantStore.Lock()
+	defer tim.TenantStore.Unlock()
 
+	if err := tim.TenantStore.LoadTenantData(); err != nil {
+		return err
+	}
+	return tim.TenantStore.Del(id)
+}
+
+func (tim *TenantIPAM) CheckIP(id string)  (net.IP,error) {
+
+	tim.TenantStore.RLock()
+	defer tim.TenantStore.RUnlock()
+
+	if err := tim.TenantStore.LoadTenantData(); err != nil {
+		return nil, err
+	}
+
+	ip, ok := tim.TenantStore.GetIPByID(id)
+	if !ok {
+		return nil, fmt.Errorf("failed to find container %s ip", id)
+	}
+	return ip, nil
+}
 
 func (tim *TenantIPAM)NextIP(ip net.IP) (net.IP, error) {
 

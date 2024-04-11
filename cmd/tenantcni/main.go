@@ -35,12 +35,14 @@ func main() {
 
 func cmdAdd(args *skel.CmdArgs) error {
 
+
 	//Context for retry tenant loading
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	file := llog.LoadLogFile()
 	defer file.Close()
+	log.Print("Command: ADD")
 	pod_name := get_regex(args.Args)
 
 	
@@ -135,17 +137,122 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 func cmdDel(args *skel.CmdArgs) error {
 
+	//Context for retry tenant loading
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	file := llog.LoadLogFile()
 	defer file.Close()
+	log.Print("Command: DEL")
+	pod_name := get_regex(args.Args)
 
-	return nil
+	
+	//Fetches tenant name from the pod name, retries if failed
+	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+
+		tenantName, err := getTenantPod(pod_name)
+		if err != nil {
+			log.Printf("Error getting tenant name: %s", err.Error())
+			return "", err
+		}
+		if tenantName == "" {
+			log.Printf("Tenant name not found, retrying")
+			return "", errors.New("tenant name not found")
+			}
+
+		return tenantName, nil
+		})
+	if err != nil {
+		log.Printf("Error getting tenant name: %s", err.Error())
+		return err
+	}
+	tenantStore, err := ipam.NewTenantStore(defaultNodeDir, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant store: %s", err.Error())
+		return err
+	}
+	tenantStore.LoadTenantData()
+	tim, err := ipam.NewTenantIPAM(tenantStore, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant ipam: %s", err.Error())
+		return err
+	}
+	if err := tim.ReleaseIP(args.ContainerID); err != nil {
+		return err
+	}
+	
+	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+
+		log.Printf("Error getting namespace: %s", err.Error())
+		return err
+	}
+	defer netns.Close()
+
+	if err := deletePod(pod_name); err != nil {
+		log.Printf("Error deleting pod: %s", err.Error())
+		return err
+	}
+		
+	return backend.DelVeth(netns, args.IfName)
+
 }
 
 func cmdCheck(args *skel.CmdArgs) error {
 
+	//Context for retry tenant loading
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	file := llog.LoadLogFile()
 	defer file.Close()
-	return nil
+	log.Print("Command: CHECK")
+	pod_name := get_regex(args.Args)
+
+	
+	//Fetches tenant name from the pod name, retries if failed
+	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+
+		tenantName, err := getTenantPod(pod_name)
+		if err != nil {
+			log.Printf("Error getting tenant name: %s", err.Error())
+			return "", err
+		}
+		if tenantName == "" {
+			log.Printf("Tenant name not found, retrying")
+			return "", errors.New("tenant name not found")
+			}
+
+		return tenantName, nil
+		})
+	if err != nil {
+		log.Printf("Error getting tenant name: %s", err.Error())
+		return err
+	}
+	tenantStore, err := ipam.NewTenantStore(defaultNodeDir, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant store: %s", err.Error())
+		return err
+	}
+	tenantStore.LoadTenantData()
+	tim, err := ipam.NewTenantIPAM(tenantStore, tenant)
+	if err != nil {
+		log.Printf("Error creating tenant ipam: %s", err.Error())
+		return err
+	}
+	ip, err :=tim.CheckIP(args.ContainerID)
+	if err != nil {
+		log.Printf("Error checking IP: %s", err.Error())
+		return err
+	}
+	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+		log.Printf("Error getting namespace: %s", err.Error())
+		return err
+	}
+	defer netns.Close()
+
+	return backend.CheckVeth(netns, args.IfName, ip)
 }
 
 //Check errors with regex
@@ -180,4 +287,32 @@ func getTenantPod(podname string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func deletePod(podname string) error {
+
+	podStore, err := ipam.NewPodStore()
+	if err != nil {
+		log.Printf("Error creating pod store: %s", err.Error())
+		return err
+	}
+
+	podStore.LoadPodData()
+	pim, err := ipam.NewPodIPAM(podStore)
+	if err != nil {
+		log.Printf("Error creating pod ipam: %s", err.Error())
+		return err
+	}
+	podData := pim.PodStore.Data
+	podList := podData.Pods
+
+	for name, _ := range podList {
+		if name == podname {
+			delete(podList, name)
+		}
+	}
+	podData.Pods = podList
+	pim.PodStore.Data = podData
+	pim.PodStore.StorePodData()
+	return nil
 }

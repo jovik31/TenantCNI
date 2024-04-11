@@ -124,19 +124,23 @@ func (t *TenantStore) Add(ip net.IP, id string, ifname string) error{
 	return nil
 }
 
-func (t *TenantStore) Remove(ip net.IP) error {
-	if len(ip) > 0 {
-		delete(t.Data.IPs, ip.String())
-		return t.StoreTenantData()
-	}
-	return nil
-}
+
 
 func (t *TenantStore) Contains(ip net.IP) bool{
 
 	_, ok := t.Data.IPs[ip.String()]
 	return ok
 
+}
+
+func (t *TenantStore) Del(id string) error {
+	for ip, info := range t.Data.IPs {
+		if info.ID == id {
+			delete(t.Data.IPs, ip)
+			return t.StoreTenantData()
+		}
+	}
+	return nil
 }
 
 func (t *TenantStore) Last() net.IP {
