@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: busybox1
+  name: busybox2
   namespace: default
   annotations: 
-    jovik31.dev.tenants: tenant2
+    jovik31.dev.tenants: tenant1
 spec:
   containers:
   - name: busybox
@@ -14,6 +14,6 @@ spec:
       - "3600"
     imagePullPolicy: IfNotPresent
   nodeSelector: 
-    jovik31.dev.tenantcni.tenant2: Enabled
+    jovik31.dev.tenantcni.tenant1: Enabled
 
   restartPolicy: Always

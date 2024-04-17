@@ -4,10 +4,9 @@ metadata:
   name: tenant1
 spec:
   name: tenant1
-  vni: 1000
-  prefix: 1000
+  vni: 2
+  prefix: 24
   nodes:
-    - name: kind-cluster-worker
-    - name: kind-cluster-worker2
+    - name: kind-cluster-control-plane
 
            
