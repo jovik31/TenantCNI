@@ -88,6 +88,15 @@ func newVxlanDevice(vtepName string, vni int, vtepMac string) (*netlink.Vxlan, e
 	})
 }
 
+func DeleteVxLANDevice(vtepName string) error{
+	vtep, err := netlink.LinkByName(vtepName)
+	if err!=nil{
+		return err
+	}
+	return netlink.LinkDel(vtep)
+}
+
+
 func ensureVxlan(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 	link, err := netlink.LinkByName(vxlan.Name)
 	if err == nil {

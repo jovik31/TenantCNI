@@ -131,6 +131,11 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int, tenantPref
 
 }
 
+func (nim *NodeIPAM) RemoveTenant(tenantName string){
+
+	
+}
+
 func GetTenantIP(tenantList []string) netip.Prefix {
 
 	subnet, err := netip.ParsePrefix(tenantList[0])

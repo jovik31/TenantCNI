@@ -53,6 +53,14 @@ func CreateTenantBridge(bridgeName string, mtu int, gateway netip.Addr) (netlink
 	return dev, nil
 }
 
+func DeleteTenantBridge(bridgeName string) error{
+	bridge, err := netlink.LinkByName(bridgeName)
+	if err!=nil{
+		return err
+	}
+	return netlink.LinkDel(bridge)
+}
+
 func SetupVeth(netns ns.NetNS, br netlink.Link, mtu int, ifName string, podIP *net.IPNet, gateway net.IP) error {
 	hostIface := &current.Interface{}
 	err := netns.Do(func(hostNS ns.NetNS) error {

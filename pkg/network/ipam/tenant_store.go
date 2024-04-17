@@ -28,7 +28,6 @@ func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 			return nil, err
 		}
 	}
-
 	mutex, err := newFileLock(dir)
 	if err != nil {
 		log.Printf("Failed in creating file lock for node store: %s", err.Error())
@@ -56,6 +55,34 @@ func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 	}, nil
 
 }
+
+func DeleteTenantStore(tenantName string) error {
+	
+	dataDir := defaultStoreDir
+
+	dirpath:= filepath.Join(dataDir, tenantName)
+	child, err:=os.ReadDir(dirpath)
+	if err != nil {
+		log.Printf("Failed reading directory %s", err)
+		return err
+	}
+	log.Printf("Delete the following: %s", child)
+	for _, entry := range child {
+		err = os.RemoveAll(filepath.Join(dirpath, entry.Name()))
+		log.Printf("Deleting %s", entry.Name())
+		if err != nil {
+			log.Printf("Failed deleting %s", err)
+			return err
+		}
+	}
+	err= os.RemoveAll(dirpath)
+	if err != nil {
+		log.Printf("Failed deleting %s", err)
+		return err
+	}
+	return nil
+
+}	
 
 //Store tenant data to a json file
 func (s *TenantStore) StoreTenantData() error {
@@ -137,6 +164,7 @@ func (t *TenantStore) Del(id string) error {
 	for ip, info := range t.Data.IPs {
 		if info.ID == id {
 			delete(t.Data.IPs, ip)
+			log.Printf("New list %v, deleted %v", t.Data.IPs, ip)
 			return t.StoreTenantData()
 		}
 	}
