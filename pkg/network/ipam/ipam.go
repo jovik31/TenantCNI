@@ -57,7 +57,7 @@ func ListSubnets(original string, newPrefix int) []string {
 }
 
 // Check if it is possible to create a tenantStore outside and pass it to the function only updating the tenantCIDR
-func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
+func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int, tenantPrefix int) error {
 	nim.NodeStore.Lock()
 	defer nim.NodeStore.Unlock()
 
@@ -88,6 +88,8 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int) error {
 		log.Printf("Failed to create a tenant Store")
 	}
 
+	tenantStore.Data.TenantName = tenantName
+	tenantStore.Data.TenantPrefix = tenantPrefix
 	tenantStore.Data.TenantCIDR = tenantCIDR.String()
 
 	//Generate a new bridge name for the tenant

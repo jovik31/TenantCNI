@@ -79,3 +79,12 @@ func AddRoutes(localVtepID int, remoteTenantCIDR *net.IPNet, remoteVtepIP net.IP
 	})
 	return nil
 }
+
+
+func CheckARP(localVtepID int) ([]netlink.Neigh, error){
+
+	return netlink.NeighList(localVtepID, netlink.FAMILY_V4)
+
+}
+//func CheckFdb(vtepName string) 
+//func CheckRoutes()

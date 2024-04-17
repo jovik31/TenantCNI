@@ -81,7 +81,6 @@ func (c *Controller) handlePodAdd(obj interface{}) {
 	pod_map := pim.PodStore.Data.Pods
 	tenantAnnotation := newPod.Annotations[podTenantAnnotationKey]
 	if newPod.Spec.HostNetwork {
-		log.Printf("Pod %s is using host network", newPod.Name)
 		p.Unlock()
 		return
 	}else{

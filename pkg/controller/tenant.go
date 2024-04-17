@@ -7,6 +7,7 @@ import (
 	"net"
 	"reflect"
 	"time"
+	"github.com/vishvananda/netlink"
 
 	"github.com/jovik31/tenant/pkg/apis/jovik31.dev/v1alpha1"
 	tenantClientset "github.com/jovik31/tenant/pkg/client/clientset/versioned"
@@ -18,7 +19,6 @@ import (
 	"github.com/jovik31/tenant/pkg/network/ipam"
 	"github.com/jovik31/tenant/pkg/network/routing"
 
-	"github.com/vishvananda/netlink"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -260,7 +260,7 @@ func (c *Controller) addTenant(key string) error {
 			log.Print("Error creating node IPAM: ", err.Error())
 		}
 		//Allocate and configure the tenant files with the information necessary
-		nim.AllocateTenant(newTenant.Spec.Name, newTenant.Spec.VNI)
+		nim.AllocateTenant(newTenant.Spec.Name, newTenant.Spec.VNI, newTenant.Spec.Prefix)
 
 		//After configuring all the tenant files we need to set the currentNode annotations to show that the tenant is enabled
 		//And add the values for Vtep IP, Node IP and VtepMac Address on the tenant object
@@ -362,21 +362,16 @@ func (c *Controller) addTenant(key string) error {
 }
 func (c *Controller) updateTenant(obj *EventObject) error {
 
-	newTenant := obj.newObj.(*v1alpha1.Tenant)
-	oldTenant := obj.oldObj.(*v1alpha1.Tenant)
-	//Check if it was a resync update
-	if(newTenant == oldTenant){
-
-		log.Printf("Resync update, tenant is the same")
-		return nil
+	namespace, name, err := cache.SplitMetaNamespaceKey(obj.key)
+	if err != nil {
+		log.Printf("Failed with error: %s  in splitting name and namespace from workqueue key", err.Error())
 	}
 
-	//If it reaches here, a change was made. These are the only changes that can be made to a tenant
-	if (!reflect.DeepEqual(newTenant.Spec.Nodes, oldTenant.Spec.Nodes)){
+	newTenant := obj.newObj.(*v1alpha1.Tenant)
+	oldTenant := obj.oldObj.(*v1alpha1.Tenant)
 
-		log.Printf("Nodes have changed")
-
-		kubeSet, err := k8s.GetKubeClientSet()
+	//Every change field is done on a copy of the real object
+	kubeSet, err := k8s.GetKubeClientSet()
 		if err != nil {
 			log.Print("Error getting kube client set: ", err.Error())
 		}
@@ -386,13 +381,28 @@ func (c *Controller) updateTenant(obj *EventObject) error {
 			log.Print("Error getting current node name: ", err.Error())
 		}
 
+	//Check if it was a resync update, 
+	if(reflect.DeepEqual(newTenant, oldTenant)){
+
+		log.Printf("Resync update, no changes made to tenant: %s\n", newTenant.Name)
+
+		//TO DO: Add logic for resync checks on the tenant routes and tenant interfaces
+		return nil
+	}
+
+	//Check now for allowed changes. These are the only changes that can be made to a tenant
+	if (!reflect.DeepEqual(newTenant.Spec.Nodes, oldTenant.Spec.Nodes)){
+
+		//If it the existed in the past and it does not exist now, delete the tenant from the node
+		//Send delete command to this nodes workerqueue
+
+		//If it did not exist in the past and it exists now, add the tenant to the node
+		//Send add command to this nodes workerqueue
+
 		//Check if the current node is part of the updated tenant
 		if(existsNode(newTenant.Spec.Nodes, currentNodeName)){
 
-			namespace, name, err := cache.SplitMetaNamespaceKey(obj.key)
-			if err != nil {
-				log.Printf("Failed with error: %s  in splitting name and namespace from workqueue key", err.Error())
-			}
+
 			//get the newest tenant version
 			tenant, err := c.refreshTenant(namespace, name)
 			if err != nil {
@@ -407,7 +417,7 @@ func (c *Controller) updateTenant(obj *EventObject) error {
 				if(node.Name != currentNodeName){
 
 					if node.NodeIP == "" || node.VtepIp == "" || node.VtepMac == ""{
-						log.Println("Node not initialized, update when node has been initialized")
+						log.Printf("Node %s not initialized, update when node has been initialized", node.Name)
 						continue
 					}
 					t, err := ipam.NewTenantStore(defaultNodeDir, newTenant.Name)
@@ -458,20 +468,51 @@ func (c *Controller) updateTenant(obj *EventObject) error {
 
 			}
 			c.recorder.Event(newTenant, corev1.EventTypeNormal, "Update", "Tenant has been updated on node: " + currentNodeName)
-			return nil
-
-
-		}else{
-
-			log.Println("Current node is not part of the updated tenant")
-			return nil
-
 		}
 
-	}else{
-		log.Printf("Tenant has changed, but not change was made to the nodes")
-		return nil
 	}
+
+	if(existsNode(newTenant.Spec.Nodes, currentNodeName)){
+	//Changing the Name, VNI or Prefix is not allowed. Revert changes with the ones applied at Tenant Addition.
+		if(!reflect.DeepEqual(newTenant.Spec.Prefix, oldTenant.Spec.Prefix) || 
+			!reflect.DeepEqual(newTenant.Spec.VNI, oldTenant.Spec.VNI)||
+			!reflect.DeepEqual(newTenant.ObjectMeta.Name, oldTenant.ObjectMeta.Name) || 
+			!reflect.DeepEqual(newTenant.Spec.Name, oldTenant.Spec.Name)){
+			c.recorder.Event(newTenant, corev1.EventTypeWarning, "Failed Update", "Fields: Name, VNI and Prefix cannot be changed" + currentNodeName)
+
+			//We need the values saved on node
+			//Get tenant values saved on Node
+			t, err := ipam.NewTenantStore(defaultNodeDir, newTenant.Name)
+			if err != nil {
+
+				log.Println("Error creating tenant store", err.Error())
+			}
+			t.LoadTenantData()
+			//Get access to the tenant information to register in the Tenant CIDR
+			tim, err := ipam.NewTenantIPAM(t, newTenant.Name)
+			if err != nil {
+				log.Println("Error creating tenant IPAM", err.Error())
+			}
+			tenantOnFile := tim.TenantStore.Data
+
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			tenant, err := c.refreshTenant(namespace, name)
+				if err != nil {
+					log.Printf("Failed with error: %s  in getting tenant by name\n", err.Error())
+				return err
+				}
+		
+			//Updates resource with the correct values before illegal change in values of VNI, Prefix and Name
+			err = c.UpdateTenantResource(tenant, tenantOnFile, namespace)
+			return err
+		})
+		if err != nil {
+			return err
+			}
+		}
+	}
+
+	return nil
 
 }
 
@@ -518,9 +559,6 @@ func (c *Controller) deleteTenant(obj *EventObject) error {
 
 
 	}
-	
-
-
 	log.Print(tenant)
 	return nil
 

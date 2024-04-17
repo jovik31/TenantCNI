@@ -32,6 +32,8 @@ type NodeData struct {
 }
 
 type TenantData struct {
+	TenantName string `json:"tenantName"`
+	TenantPrefix int `json:"tenantPrefix"`
 	TenantCIDR string  `json:"tenantCIDR"`
 	Bridge     *Bridge `json:"bridge"`
 	Vxlan      *Vxlan  `json:"vxlan"`
