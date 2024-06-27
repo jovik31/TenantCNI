@@ -1,0 +1,14 @@
+apiVersion: jovik31.dev/v1alpha1
+kind: Tenant
+metadata:
+  name: tblue
+spec:
+  name: tblue
+  vni: 3
+  prefix: 24
+  nodes:
+    - name: kind-cluster-worker
+    - name: kind-cluster-worker2
+
+
+           

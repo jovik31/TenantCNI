@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox-red1
+  namespace: default
+  annotations: 
+    jovik31.dev.tenants: tred
+spec:
+  nodeName: kind-cluster-worker
+  containers:
+  - name: busybox-red1
+    image: busybox:1.28
+    command:
+      - sleep
+      - "3600"
+    imagePullPolicy: IfNotPresent
+  nodeSelector: 
+    jovik31.dev.tenantcni.tred: Enabled
+
+  restartPolicy: Always

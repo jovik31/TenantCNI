@@ -1,12 +1,14 @@
 apiVersion: jovik31.dev/v1alpha1
 kind: Tenant
 metadata:
-  name: tenant1
+  name: tred
 spec:
-  name: tenant1
+  name: tred
   vni: 2
   prefix: 24
   nodes:
-    - name: kind-cluster-control-plane
+    - name: kind-cluster-worker
+    - name: kind-cluster-worker2
+
 
            
