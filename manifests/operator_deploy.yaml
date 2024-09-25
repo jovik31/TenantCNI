@@ -87,8 +87,8 @@ data:
 ---
 apiVersion: apps/v1
 kind: DaemonSet
-namespace: tenant-manager
 metadata:
+  namespace: tenant-manager
   creationTimestamp: null
   labels:
     tier: node
