@@ -66,7 +66,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: tenantcni-config
-  namespace: default
+  namespace: tenant-manager
   labels:
     tier: node
     app: tenantcni
