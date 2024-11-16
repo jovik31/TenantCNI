@@ -5,10 +5,10 @@ metadata:
 spec:
   name: tred
   vni: 2
-  prefix: 24
+  prefix: 30
   nodes:
-    - name: kind-cluster-worker
-    - name: kind-cluster-worker2
+    - name: cluster-worker
+    - name: cluster-worker2
 
 
            

@@ -14,4 +14,4 @@ kubeadmConfigPatches:
   kind: ClusterConfiguration
   controllerManager:
     extraArgs:
-      "node-cidr-mask-size": "22"
+      "node-cidr-mask-size": "22" 

@@ -1,16 +1,17 @@
 package ipam
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/netip"
-	"errors"
+
 	//"golang.org/x/exp/maps"
 
+	cip "github.com/containernetworking/plugins/pkg/ip"
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
-	cip "github.com/containernetworking/plugins/pkg/ip"
 )
 
 var (
@@ -100,7 +101,6 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int, tenantPref
 	log.Printf("Bridge name: %s and IP: %s", tenantStore.Data.Bridge.Name, tenantStore.Data.Bridge.Gateway.String())
 	tenantStore.Data.Last = tenantStore.Data.Bridge.Gateway.String()
 
-
 	if len(tenantStore.Data.Bridge.Name) >= 13 {
 		log.Printf("Bridge name too long: %s", tenantStore.Data.Bridge.Name)
 		tenantStore.Data.Bridge.Name = "br-default"
@@ -131,9 +131,8 @@ func (nim *NodeIPAM) AllocateTenant(tenantName string, tenantVNI int, tenantPref
 
 }
 
-func (nim *NodeIPAM) RemoveTenant(tenantName string){
+func (nim *NodeIPAM) RemoveTenant(tenantName string) {
 
-	
 }
 
 func GetTenantIP(tenantList []string) netip.Prefix {
@@ -145,7 +144,7 @@ func GetTenantIP(tenantList []string) netip.Prefix {
 	return subnet
 }
 
-func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
+func (tim *TenantIPAM) AllocateIP(id string, ifName string, netns string, pod_name string) (net.IP, error) {
 
 	tim.TenantStore.Lock()
 	defer tim.TenantStore.Unlock()
@@ -155,7 +154,7 @@ func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
 	}
 	//Get tenant gateway
 	gtw := tim.TenantStore.Data.Bridge.Gateway.String()
-	
+
 	//Check if ID already exists
 	ip, _ := tim.TenantStore.GetIPByID(id)
 	if len(ip) > 0 {
@@ -171,7 +170,7 @@ func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
 	log.Printf("Last IP: %s, Start IP %s and gateway is: %s", lastIP.String(), start.String(), gtw)
 	for {
 		next, err := tim.NextIP(start)
-		if err == ErrIPOverflow && !lastIP.Equal(net.IP(gtw)){
+		if err == ErrIPOverflow && !lastIP.Equal(net.IP(gtw)) {
 			start = net.IP(gtw)
 			continue
 		} else if err != nil {
@@ -179,7 +178,7 @@ func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
 			return nil, err
 		}
 		if !tim.TenantStore.Contains(next) {
-			err := tim.TenantStore.Add(next, id, ifName)
+			err := tim.TenantStore.Add(next, id, ifName, netns, pod_name)
 			tim.TenantStore.Data.Last = next.String()
 			tim.TenantStore.StoreTenantData()
 			return next, err
@@ -191,7 +190,7 @@ func (tim *TenantIPAM) AllocateIP(id string, ifName string) (net.IP, error) {
 		log.Printf("Next IP: %s", next.String())
 	}
 	return nil, fmt.Errorf("no more available IPs")
-	
+
 }
 func (tim *TenantIPAM) ReleaseIP(id string) error {
 	tim.TenantStore.Lock()
@@ -203,7 +202,7 @@ func (tim *TenantIPAM) ReleaseIP(id string) error {
 	return tim.TenantStore.Del(id)
 }
 
-func (tim *TenantIPAM) CheckIP(id string)  (net.IP,error) {
+func (tim *TenantIPAM) CheckIP(id string) (net.IP, error) {
 
 	tim.TenantStore.RLock()
 	defer tim.TenantStore.RUnlock()
@@ -219,7 +218,7 @@ func (tim *TenantIPAM) CheckIP(id string)  (net.IP,error) {
 	return ip, nil
 }
 
-func (tim *TenantIPAM)NextIP(ip net.IP) (net.IP, error) {
+func (tim *TenantIPAM) NextIP(ip net.IP) (net.IP, error) {
 
 	next := cip.NextIP(ip)
 	log.Println("Next IP: ", next.String())
@@ -237,7 +236,7 @@ func (tim *TenantIPAM)NextIP(ip net.IP) (net.IP, error) {
 	return next, nil
 }
 func (tim *TenantIPAM) IPNet(ip net.IP) *net.IPNet {
-	
+
 	_, ipNet, err := net.ParseCIDR(tim.TenantStore.Data.TenantCIDR)
 	if err != nil {
 		log.Printf("Failed to parse CIDR: %s", err)

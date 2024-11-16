@@ -6,7 +6,7 @@ metadata:
   annotations: 
     jovik31.dev.tenants: tred
 spec:
-  nodeName: kind-cluster-worker2
+  nodeName: cluster-worker2
   containers:
   - name: busybox-red2
     image: busybox:1.28

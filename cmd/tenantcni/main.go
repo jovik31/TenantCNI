@@ -1,31 +1,30 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net"
 	"regexp"
-	"context"
-	"errors"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
+	"github.com/containernetworking/plugins/pkg/ns"
 	bv "github.com/containernetworking/plugins/pkg/utils/buildversion"
-	
+
 	llog "github.com/jovik31/tenant/pkg/log"
 	"github.com/jovik31/tenant/pkg/network/backend"
 	"github.com/jovik31/tenant/pkg/network/ipam"
 
-	retry"github.com/jdvr/go-again"
+	retry "github.com/jdvr/go-again"
 )
 
 const (
 	plugin_name    = "tenantcni"
 	defaultNodeDir = "/var/lib/cni/tenantcni"
-
 )
 
 func main() {
@@ -34,7 +33,6 @@ func main() {
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
-
 
 	//Context for retry tenant loading
 	ctx, cancel := context.WithCancel(context.Background())
@@ -45,9 +43,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 	log.Print("Command: ADD")
 	pod_name := get_regex(args.Args)
 
-	
 	//Fetches tenant name from the pod name, retries if failed
-	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+	tenant, err := retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
 
 		tenantName, err := getTenantPod(pod_name)
 		if err != nil {
@@ -57,11 +54,11 @@ func cmdAdd(args *skel.CmdArgs) error {
 		if tenantName == "" {
 			log.Printf("Tenant name not found, retrying")
 			return "", errors.New("tenant name not found")
-			}
+		}
 
 		return tenantName, nil
-		})
-		
+	})
+
 	if err != nil {
 		log.Printf("Error getting tenant name: %s", err.Error())
 		return err
@@ -86,9 +83,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 	bridge := tim.TenantStore.Data.Bridge.Name
 	log.Printf("Bridge: %s, Gateway: %s", bridge, gateway)
 
-
 	//Allocate IP address from the specific tenant to the next Pod
-	ip, err := tim.AllocateIP(args.ContainerID, args.IfName)
+	ip, err := tim.AllocateIP(args.ContainerID, args.IfName, args.Netns, pod_name)
 	if err != nil {
 		log.Printf("Error allocating IP address: %s", err.Error())
 		return err
@@ -98,7 +94,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	mtu := 1500
 	br, err := backend.CreateTenantBridge(bridge, mtu, gateway)
 	if err != nil {
-		log.Print("Error creating bridge",err.Error())
+		log.Print("Error creating bridge", err.Error())
 		return err
 	}
 	log.Printf("Bridge created: %s", br.Attrs().Name)
@@ -146,9 +142,8 @@ func cmdDel(args *skel.CmdArgs) error {
 	log.Print("Command: DEL")
 	pod_name := get_regex(args.Args)
 
-	
 	//Fetches tenant name from the pod name, retries if failed
-	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+	tenant, err := retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
 
 		tenantName, err := getTenantPod(pod_name)
 		if err != nil {
@@ -158,10 +153,10 @@ func cmdDel(args *skel.CmdArgs) error {
 		if tenantName == "" {
 			log.Printf("Tenant name not found, retrying")
 			return "", errors.New("tenant name not found")
-			}
+		}
 
 		return tenantName, nil
-		})
+	})
 	if err != nil {
 		log.Printf("Error getting tenant name: %s", err.Error())
 		return err
@@ -180,7 +175,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	if err := tim.ReleaseIP(args.ContainerID); err != nil {
 		return err
 	}
-	
+
 	netns, err := ns.GetNS(args.Netns)
 	if err != nil {
 
@@ -193,7 +188,7 @@ func cmdDel(args *skel.CmdArgs) error {
 		log.Printf("Error deleting pod: %s", err.Error())
 		return err
 	}
-		
+
 	return backend.DelVeth(netns, args.IfName)
 
 }
@@ -209,9 +204,8 @@ func cmdCheck(args *skel.CmdArgs) error {
 	log.Print("Command: CHECK")
 	pod_name := get_regex(args.Args)
 
-	
 	//Fetches tenant name from the pod name, retries if failed
-	tenant, err:=retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
+	tenant, err := retry.Retry[string](ctx, func(ctx context.Context) (string, error) {
 
 		tenantName, err := getTenantPod(pod_name)
 		if err != nil {
@@ -221,10 +215,10 @@ func cmdCheck(args *skel.CmdArgs) error {
 		if tenantName == "" {
 			log.Printf("Tenant name not found, retrying")
 			return "", errors.New("tenant name not found")
-			}
+		}
 
 		return tenantName, nil
-		})
+	})
 	if err != nil {
 		log.Printf("Error getting tenant name: %s", err.Error())
 		return err
@@ -240,7 +234,7 @@ func cmdCheck(args *skel.CmdArgs) error {
 		log.Printf("Error creating tenant ipam: %s", err.Error())
 		return err
 	}
-	ip, err :=tim.CheckIP(args.ContainerID)
+	ip, err := tim.CheckIP(args.ContainerID)
 	if err != nil {
 		log.Printf("Error checking IP: %s", err.Error())
 		return err
@@ -255,7 +249,7 @@ func cmdCheck(args *skel.CmdArgs) error {
 	return backend.CheckVeth(netns, args.IfName, ip)
 }
 
-//Check errors with regex
+// Check errors with regex
 func get_regex(arg string) string {
 
 	var re = regexp.MustCompile(`(-?)K8S_POD_NAME=(.+?)(;|$)`)
@@ -282,7 +276,7 @@ func getTenantPod(podname string) (string, error) {
 	podList := podData.Pods
 
 	for name, tenant := range podList {
-		if name == podname && tenant != ""{
+		if name == podname && tenant != "" {
 			return tenant, nil
 		}
 	}

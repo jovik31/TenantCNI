@@ -13,7 +13,6 @@ type NodeIPAM struct {
 	NodeStore *NodeStore
 }
 
-
 type TenantIPAM struct {
 	TenantName  string
 	TenantStore *TenantStore
@@ -23,7 +22,6 @@ type PodIPAM struct {
 	PodStore *PodStore
 }
 
-
 type NodeData struct {
 	NodeIP        string                  `json:"nodeIP"`
 	NodeCIDR      string                  `json:"nodeCIDR"`
@@ -32,11 +30,11 @@ type NodeData struct {
 }
 
 type TenantData struct {
-	TenantName string `json:"tenantName"`
-	TenantPrefix int `json:"tenantPrefix"`
-	TenantCIDR string  `json:"tenantCIDR"`
-	Bridge     *Bridge `json:"bridge"`
-	Vxlan      *Vxlan  `json:"vxlan"`
+	TenantName   string  `json:"tenantName"`
+	TenantPrefix int     `json:"tenantPrefix"`
+	TenantCIDR   string  `json:"tenantCIDR"`
+	Bridge       *Bridge `json:"bridge"`
+	Vxlan        *Vxlan  `json:"vxlan"`
 
 	IPs  map[string]ContainerNetInfo `json:"ips"`
 	Last string                      `json:"last"`
@@ -61,11 +59,10 @@ type TenantStore struct {
 }
 
 type PodStore struct {
-
 	*filemutex.FileMutex
-	Directory 	string
-	Data 		*PodData
-	DataFile 	string
+	Directory string
+	Data      *PodData
+	DataFile  string
 }
 
 type Bridge struct {
@@ -83,4 +80,6 @@ type Vxlan struct {
 type ContainerNetInfo struct {
 	ID     string `json:"id"`
 	IFname string `json:"ifname"`
+	NetNS  string `json: netns`
+	Name   string `json: name`
 }

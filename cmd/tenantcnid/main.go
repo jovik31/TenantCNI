@@ -21,14 +21,13 @@ import (
 
 var (
 	defaultNodeDir = "/var/lib/cni/tenantcni"
-	confMap = "tenantcni-config"
-
+	confMap        = "tenantcni-config"
 )
 
 func main() {
 
 	log.Println("Starting tenant operator")
-	ctx :=signals.SetupSignalHandler()
+	ctx := signals.SetupSignalHandler()
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	//init kubernetes client for initial configurations
 	config, err := kubecnf.InitKubeConfig()
@@ -91,28 +90,27 @@ func main() {
 
 	//Register default tenant in the k8s API
 	tenantRegistration.RegisterDefaultTenant(tenantClient, nodeList)
-	
+
 	//Get info from config map on the cluster PodCIDR for iptables.
 	netConf, err := kubecnf.GetConfigMap(kubeclientset, "default", confMap)
-	if err !=nil{
+	if err != nil {
 		log.Printf("Error retrieving config from map %s", err)
 	}
 
-	//Get the PodCIDR from the config map 
+	//Get the PodCIDR from the config map
 	configMap := &confType.ConfMap{}
 	confString := netConf.Data["net-conf.json"]
-	err =json.Unmarshal([]byte(confString), &configMap)
+	err = json.Unmarshal([]byte(confString), &configMap)
 	if err != nil {
 		log.Printf("Error unmarshalling config map: %s", err.Error())
 	}
 	log.Printf("PodCIDR: %s", configMap.PodCIDR)
-	
-	
+
 	//Enable post routing for the node CIDR
-	if err := routing.AllowPostRouting(nodeCIDR); err != nil {
-		log.Printf("Error enabling post routing: %s", err.Error())
-	}
-	
+	//if err := routing.AllowPostRouting(nodeCIDR); err != nil {
+	//	log.Printf("Error enabling post routing: %s", err.Error())
+	//}
+
 	//enable IPv4 forwarding, if not enabled
 	if err := routing.EnableIPForwarding(); err != nil {
 		log.Printf("Error enabling IP forwarding: %s", err.Error())
@@ -122,12 +120,12 @@ func main() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeclientset, 10*time.Second)
 	tInformersFactory := tenantInformerFactory.NewSharedInformerFactory(tenantClient, 10*time.Minute)
 
-	c := tenantController.NewController(ctx,tenantClient, kubeclientset,
-		 tInformersFactory.Jovik31().V1alpha1().Tenants(), kubeInformerFactory.Core().V1().Pods())
+	c := tenantController.NewController(ctx, tenantClient, kubeclientset,
+		tInformersFactory.Jovik31().V1alpha1().Tenants(), kubeInformerFactory.Core().V1().Pods())
 
 	tInformersFactory.Start(ctx.Done())
 	kubeInformerFactory.Start(ctx.Done())
-	
+
 	if err := c.Run(ctx); err != nil {
 		log.Printf("Error running controller: %s\n", err.Error())
 	}

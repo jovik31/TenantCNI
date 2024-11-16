@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"log"
 	"net"
+
 	//"net/netip"
 	"os"
 	"path/filepath"
-	
 	//cip "github.com/containernetworking/plugins/pkg/ip"
 )
 
 const (
-	defaultStoreDir   = "/var/lib/cni/tenantcni"
+	defaultStoreDir = "/var/lib/cni/tenantcni"
 )
-
 
 func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 
@@ -22,7 +21,7 @@ func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 		dataDir = defaultStoreDir
 	}
 
-	dir := filepath.Join(dataDir,tenantName)
+	dir := filepath.Join(dataDir, tenantName)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return nil, err
@@ -34,7 +33,6 @@ func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 	}
 	file := filepath.Join(dir, tenantName+".json")
 
-	
 	if err != nil {
 		log.Printf("Failed in parsing CIDR: %s", err.Error())
 	}
@@ -57,11 +55,11 @@ func NewTenantStore(dataDir string, tenantName string) (*TenantStore, error) {
 }
 
 func DeleteTenantStore(tenantName string) error {
-	
+
 	dataDir := defaultStoreDir
 
-	dirpath:= filepath.Join(dataDir, tenantName)
-	child, err:=os.ReadDir(dirpath)
+	dirpath := filepath.Join(dataDir, tenantName)
+	child, err := os.ReadDir(dirpath)
 	if err != nil {
 		log.Printf("Failed reading directory %s", err)
 		return err
@@ -75,16 +73,16 @@ func DeleteTenantStore(tenantName string) error {
 			return err
 		}
 	}
-	err= os.RemoveAll(dirpath)
+	err = os.RemoveAll(dirpath)
 	if err != nil {
 		log.Printf("Failed deleting %s", err)
 		return err
 	}
 	return nil
 
-}	
+}
 
-//Store tenant data to a json file
+// Store tenant data to a json file
 func (s *TenantStore) StoreTenantData() error {
 	raw, err := json.Marshal(s.Data)
 	if err != nil {
@@ -94,9 +92,8 @@ func (s *TenantStore) StoreTenantData() error {
 	return os.WriteFile(s.DataFile, raw, 0644)
 }
 
-
-//Load tenant data to a tenant store
-func(s *TenantStore) LoadTenantData() error {
+// Load tenant data to a tenant store
+func (s *TenantStore) LoadTenantData() error {
 	tenantData := &TenantData{}
 
 	raw, err := os.ReadFile(s.DataFile)
@@ -128,32 +125,31 @@ func(s *TenantStore) LoadTenantData() error {
 	return nil
 }
 
+func (t *TenantStore) GetIPByID(id string) (net.IP, bool) {
 
-func(t *TenantStore) GetIPByID(id string) (net.IP, bool) {
-	
 	for ip, info := range t.Data.IPs {
 		if info.ID == id {
 			return net.ParseIP(ip), true
 		}
 	}
-	return nil ,false
+	return nil, false
 }
 
-func (t *TenantStore) Add(ip net.IP, id string, ifname string) error{
+func (t *TenantStore) Add(ip net.IP, id string, ifname string, netns string, pod_name string) error {
 
-	if len(ip) >0 {
+	if len(ip) > 0 {
 		t.Data.IPs[ip.String()] = ContainerNetInfo{
-			ID: id,
+			ID:     id,
 			IFname: ifname,
+			NetNS:  netns,
+			Name:   pod_name,
 		}
-			return t.StoreTenantData()
+		return t.StoreTenantData()
 	}
 	return nil
 }
 
-
-
-func (t *TenantStore) Contains(ip net.IP) bool{
+func (t *TenantStore) Contains(ip net.IP) bool {
 
 	_, ok := t.Data.IPs[ip.String()]
 	return ok
